@@ -2,7 +2,7 @@ import type { CodeExecutionInput, CodeExecutionProvider, CodeExecutionResult } f
 import vm from "node:vm";
 
 function normalizeInput(input: unknown) {
-  return Array.isArray(input) ? input : [input];
+  return [input];
 }
 
 function isEqual(actual: unknown, expected: unknown) {
