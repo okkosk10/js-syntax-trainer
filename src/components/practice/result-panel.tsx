@@ -1,11 +1,39 @@
 import { Bot, CheckCircle2, CircleAlert } from "lucide-react";
+import type { SubmissionResult, SubmissionStatus } from "@/features/submission/submission.types";
 
 type ResultPanelProps = {
-  status: "idle" | "running" | "passed" | "failed";
+  runStatus: "idle" | "running" | "passed" | "failed";
+  isSubmitting: boolean;
+  submissionResult: SubmissionResult | null;
+  errorMessage: string | null;
 };
 
-export function ResultPanel({ status }: ResultPanelProps) {
-  const isPassed = status === "passed";
+function statusLabel(status: SubmissionStatus) {
+  if (status === "passed") {
+    return "passed";
+  }
+
+  if (status === "failed") {
+    return "failed";
+  }
+
+  return "error";
+}
+
+function statusClassName(status: SubmissionStatus) {
+  if (status === "passed") {
+    return "text-app-accent";
+  }
+
+  if (status === "failed") {
+    return "text-app-danger";
+  }
+
+  return "text-app-danger";
+}
+
+export function ResultPanel({ runStatus, isSubmitting, submissionResult, errorMessage }: ResultPanelProps) {
+  const isRunPassed = runStatus === "passed";
 
   return (
     <section className="h-52 border-t border-app-border bg-app-panel">
@@ -16,19 +44,55 @@ export function ResultPanel({ status }: ResultPanelProps) {
       </div>
       <div className="grid h-[calc(100%-2.5rem)] grid-cols-1 gap-0 md:grid-cols-2">
         <div className="border-r border-app-border p-4">
-          {status === "idle" && <p className="text-sm text-app-muted">Run 버튼으로 공개 테스트를 실행하세요.</p>}
-          {status === "running" && <p className="text-sm text-app-muted">테스트 실행 중...</p>}
-          {status !== "idle" && status !== "running" && (
+          {errorMessage && (
+            <div className="rounded-md border border-app-danger/40 bg-app-danger/10 p-3">
+              <p className="text-sm font-semibold text-app-danger">제출 실패</p>
+              <p className="mt-1 text-sm text-app-danger/90">{errorMessage}</p>
+            </div>
+          )}
+          {!errorMessage && isSubmitting && <p className="text-sm text-app-muted">제출 중...</p>}
+          {!errorMessage && !isSubmitting && submissionResult && (
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2">
+                {submissionResult.status === "passed" ? (
+                  <CheckCircle2 className="h-5 w-5 text-app-accent" />
+                ) : (
+                  <CircleAlert className="h-5 w-5 text-app-danger" />
+                )}
+                <p className="font-semibold">
+                  제출 결과: <span className={statusClassName(submissionResult.status)}>{statusLabel(submissionResult.status)}</span>
+                </p>
+              </div>
+              <p className="text-app-muted">
+                점수 {submissionResult.score}점 · 실행 시간 {submissionResult.runtimeMs}ms
+              </p>
+              <ul className="space-y-1.5">
+                {submissionResult.results.map((result, index) => (
+                  <li key={`${result.testCaseId}-${index}`} className="flex items-center justify-between gap-4">
+                    <span className="text-app-muted">테스트 {index + 1}</span>
+                    <span className={statusClassName(result.status)}>{statusLabel(result.status)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {!errorMessage && !isSubmitting && !submissionResult && runStatus === "idle" && (
+            <p className="text-sm text-app-muted">Run 버튼으로 공개 테스트를 실행하세요.</p>
+          )}
+          {!errorMessage && !isSubmitting && !submissionResult && runStatus === "running" && (
+            <p className="text-sm text-app-muted">테스트 실행 중...</p>
+          )}
+          {!errorMessage && !isSubmitting && !submissionResult && runStatus !== "idle" && runStatus !== "running" && (
             <div className="flex items-start gap-3">
-              {isPassed ? (
+              {isRunPassed ? (
                 <CheckCircle2 className="h-5 w-5 text-app-accent" />
               ) : (
                 <CircleAlert className="h-5 w-5 text-app-danger" />
               )}
               <div>
-                <p className="text-sm font-semibold">{isPassed ? "3개 테스트 통과" : "1개 테스트 실패"}</p>
+                <p className="text-sm font-semibold">{isRunPassed ? "3개 테스트 통과" : "1개 테스트 실패"}</p>
                 <p className="mt-1 text-sm text-app-muted">
-                  {isPassed ? "제출하면 숨김 테스트까지 검증합니다." : "빈 배열 입력 케이스를 확인하세요."}
+                  {isRunPassed ? "제출하면 숨김 테스트까지 검증합니다." : "빈 배열 입력 케이스를 확인하세요."}
                 </p>
               </div>
             </div>

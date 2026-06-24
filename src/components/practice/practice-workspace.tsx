@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Play, RotateCcw, Send } from "lucide-react";
 import { MonacoCodeEditor } from "@/components/editor/monaco-code-editor";
 import type { ProblemDetail, ProblemListItem } from "@/features/problem/problem.repository";
+import type { SubmissionResult } from "@/features/submission/submission.types";
 import { ProblemPanel } from "./problem-panel";
 import { ProblemSidebar } from "./problem-sidebar";
 import { ResultPanel } from "./result-panel";
@@ -22,7 +23,10 @@ const loadingMessages = [
 
 export function PracticeWorkspace() {
   const [code, setCode] = useState(starterCode);
-  const [status, setStatus] = useState<"idle" | "running" | "passed" | "failed">("idle");
+  const [runStatus, setRunStatus] = useState<"idle" | "running" | "passed" | "failed">("idle");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [problems, setProblems] = useState<ProblemListItem[]>([]);
   const [selectedProblemSlug, setSelectedProblemSlug] = useState<string | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<ProblemDetail | null>(null);
@@ -114,10 +118,61 @@ export function PracticeWorkspace() {
   );
 
   function runTests() {
-    setStatus("running");
+    setRunStatus("running");
     window.setTimeout(() => {
-      setStatus(code.includes(".map(") ? "passed" : "failed");
+      setRunStatus(code.includes(".map(") ? "passed" : "failed");
     }, 650);
+  }
+
+  async function handleSubmit() {
+    if (!selectedProblemId) {
+      setSubmissionResult(null);
+      setSubmissionError("제출할 문제를 먼저 선택하세요.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmissionError(null);
+
+    try {
+      const response = await fetch("/api/submissions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          problemId: selectedProblemId,
+          code
+        })
+      });
+
+      const data = (await response.json().catch(() => null)) as Partial<SubmissionResult> & {
+        message?: string;
+        error?: string;
+      } | null;
+
+      if (!response.ok) {
+        const message = data?.message ?? data?.error ?? "제출 처리에 실패했습니다.";
+        throw new Error(message);
+      }
+
+      if (
+        !data ||
+        typeof data.status !== "string" ||
+        typeof data.score !== "number" ||
+        typeof data.runtimeMs !== "number" ||
+        !Array.isArray(data.results)
+      ) {
+        throw new Error("제출 응답 형식이 올바르지 않습니다.");
+      }
+
+      setSubmissionResult(data as SubmissionResult);
+    } catch (error) {
+      setSubmissionResult(null);
+      setSubmissionError(error instanceof Error ? error.message : "네트워크 오류가 발생했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -156,7 +211,7 @@ export function PracticeWorkspace() {
               className="inline-flex h-8 items-center gap-2 rounded-md border border-app-border px-3 text-sm hover:bg-app-surface"
               onClick={() => {
                 setCode(starterCode);
-                setStatus("idle");
+                setRunStatus("idle");
               }}
             >
               <RotateCcw className="h-4 w-4" />
@@ -169,9 +224,13 @@ export function PracticeWorkspace() {
               <Play className="h-4 w-4" />
               Run
             </button>
-            <button className="inline-flex h-8 items-center gap-2 rounded-md bg-app-accent px-3 text-sm font-semibold text-black">
+            <button
+              className="inline-flex h-8 items-center gap-2 rounded-md bg-app-accent px-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-70"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
               <Send className="h-4 w-4" />
-              Submit
+              {isSubmitting ? "Submitting..." : "Submit"}
             </button>
           </div>
         </header>
@@ -181,7 +240,12 @@ export function PracticeWorkspace() {
           </div>
           <ProblemPanel problem={selectedProblem} />
         </div>
-        <ResultPanel status={status} />
+        <ResultPanel
+          runStatus={runStatus}
+          isSubmitting={isSubmitting}
+          submissionResult={submissionResult}
+          errorMessage={submissionError}
+        />
       </section>
     </main>
   );

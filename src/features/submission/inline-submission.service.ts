@@ -1,5 +1,6 @@
 import { Prisma, SubmissionStatus, TestStatus } from "@prisma/client";
 import { LocalExecutionProvider } from "@/features/execution/local-execution.provider";
+import type { SubmissionResult } from "@/features/submission/submission.types";
 import { prisma } from "@/lib/prisma";
 
 const executionProvider = new LocalExecutionProvider();
@@ -8,21 +9,6 @@ type InlineSubmissionInput = {
   userId: string;
   problemId: string;
   code: string;
-};
-
-type InlineSubmissionResult = {
-  submissionId: string;
-  status: "passed" | "failed" | "error";
-  score: number;
-  runtimeMs: number;
-  results: {
-    testCaseId: string;
-    status: "passed" | "failed" | "error";
-    actualOutput?: unknown;
-    expectedOutput?: unknown;
-    errorMessage?: string;
-    runtimeMs?: number;
-  }[];
 };
 
 function toSubmissionStatus(status: "passed" | "failed" | "error") {
@@ -59,7 +45,7 @@ function toNullableJsonValue(value: unknown) {
   return value as Prisma.InputJsonValue;
 }
 
-export async function createInlineSubmission(input: InlineSubmissionInput): Promise<InlineSubmissionResult> {
+export async function createInlineSubmission(input: InlineSubmissionInput): Promise<SubmissionResult> {
   const problem = await prisma.problem.findUnique({
     where: { id: input.problemId },
     include: {

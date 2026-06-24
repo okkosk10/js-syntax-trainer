@@ -11,41 +11,50 @@ const submissionSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const body = submissionSchema.parse(await request.json());
-  const user = await prisma.user.upsert({
-    where: { email: "demo@js-syntax-trainer.local" },
-    update: {},
-    create: {
-      email: "demo@js-syntax-trainer.local",
-      name: "데모 사용자"
+  try {
+    const body = submissionSchema.parse(await request.json());
+    const user = await prisma.user.upsert({
+      where: { email: "demo@js-syntax-trainer.local" },
+      update: {},
+      create: {
+        email: "demo@js-syntax-trainer.local",
+        name: "데모 사용자"
+      }
+    });
+
+    const userId = body.userId ?? user.id;
+
+    if (env.SUBMISSION_MODE === "queued") {
+      const { createSubmission } = await import("@/features/submission/queued-submission.service");
+      const submission = await createSubmission({
+        userId,
+        problemId: body.problemId,
+        code: body.code
+      });
+
+      return NextResponse.json({
+        mode: "queued",
+        submissionId: submission.id,
+        status: submission.status
+      });
     }
-  });
 
-  const userId = body.userId ?? user.id;
-
-  if (env.SUBMISSION_MODE === "queued") {
-    const { createSubmission } = await import("@/features/submission/queued-submission.service");
-    const submission = await createSubmission({
+    const submission = await createInlineSubmission({
       userId,
       problemId: body.problemId,
       code: body.code
     });
 
     return NextResponse.json({
-      mode: "queued",
-      submissionId: submission.id,
-      status: submission.status
+      mode: "inline",
+      ...submission
     });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        message: error instanceof Error ? error.message : "제출 처리 중 오류가 발생했습니다."
+      },
+      { status: 400 }
+    );
   }
-
-  const submission = await createInlineSubmission({
-    userId,
-    problemId: body.problemId,
-    code: body.code
-  });
-
-  return NextResponse.json({
-    mode: "inline",
-    ...submission
-  });
 }
