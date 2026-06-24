@@ -1,4 +1,4 @@
-import { SubmissionStatus, TestStatus } from "@prisma/client";
+import { Prisma, SubmissionStatus, TestStatus } from "@prisma/client";
 import { LocalExecutionProvider } from "@/features/execution/local-execution.provider";
 import { prisma } from "@/lib/prisma";
 
@@ -47,6 +47,18 @@ function toTestStatus(status: "passed" | "failed" | "error") {
   }
 }
 
+function toNullableJsonValue(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return Prisma.JsonNull;
+  }
+
+  return value as Prisma.InputJsonValue;
+}
+
 export async function createInlineSubmission(input: InlineSubmissionInput): Promise<InlineSubmissionResult> {
   const problem = await prisma.problem.findUnique({
     where: { id: input.problemId },
@@ -90,8 +102,8 @@ export async function createInlineSubmission(input: InlineSubmissionInput): Prom
           submissionId: submission.id,
           testCaseId: result.testCaseId,
           status: toTestStatus(result.status),
-          actualOutput: result.actualOutput ?? null,
-          expectedOutput: result.expectedOutput ?? expectedByTestCaseId.get(result.testCaseId) ?? null,
+          actualOutput: toNullableJsonValue(result.actualOutput),
+          expectedOutput: toNullableJsonValue(result.expectedOutput ?? expectedByTestCaseId.get(result.testCaseId)),
           errorMessage: result.errorMessage,
           runtimeMs: result.runtimeMs
         }))
