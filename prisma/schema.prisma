@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  email         String          @unique
+  name          String?
+  submissions   Submission[]
+  stats         LearningStat[]
+  dailyActivity UserDailyActivity[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Problem {
+  id           String       @id @default(cuid())
+  slug         String       @unique
+  title        String
+  description  String
+  difficulty   Difficulty
+  category     String
+  tags         String[]
+  starterCode  String
+  solutionCode String?
+  explanation  String?
+  isPublished  Boolean      @default(false)
+  testCases    TestCase[]
+  submissions  Submission[]
+  stats         LearningStat[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([difficulty, category])
+}
+
+model TestCase {
+  id             String       @id @default(cuid())
+  problemId      String
+  input          Json
+  expectedOutput Json
+  isHidden       Boolean      @default(false)
+  order          Int          @default(0)
+  problem        Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  results        TestResult[]
+
+  @@index([problemId, isHidden])
+}
+
+model Submission {
+  id          String           @id @default(cuid())
+  userId      String
+  problemId   String
+  code        String
+  status      SubmissionStatus @default(PENDING)
+  score       Int              @default(0)
+  runtimeMs   Int?
+  memoryKb    Int?
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem     Problem          @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  results     TestResult[]
+  aiReview    AIReview?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([userId, problemId, createdAt])
+  @@index([status])
+}
+
+model TestResult {
+  id             String     @id @default(cuid())
+  submissionId   String
+  testCaseId     String
+  status         TestStatus
+  actualOutput   Json?
+  expectedOutput Json?
+  errorMessage   String?
+  runtimeMs      Int?
+  submission     Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  testCase       TestCase   @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+}
+
+model AIReview {
+  id           String     @id @default(cuid())
+  submissionId String     @unique
+  summary      String
+  strengths    Json
+  issues       Json
+  suggestions  Json
+  improvedCode String?
+  model        String
+  createdAt    DateTime   @default(now())
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+model LearningStat {
+  id               String    @id @default(cuid())
+  userId           String
+  problemId        String
+  attempts         Int       @default(0)
+  passed           Boolean   @default(false)
+  bestScore        Int       @default(0)
+  lastSubmittedAt  DateTime?
+  averageRuntimeMs Int?
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem          Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+}
+
+model UserDailyActivity {
+  id             String   @id @default(cuid())
+  userId         String
+  activityDate   DateTime
+  submissions    Int      @default(0)
+  passedProblems Int      @default(0)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, activityDate])
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum SubmissionStatus {
+  PENDING
+  RUNNING
+  PASSED
+  FAILED
+  ERROR
+}
+
+enum TestStatus {
+  PASSED
+  FAILED
+  ERROR
+}
