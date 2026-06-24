@@ -44,6 +44,28 @@ function formatValue(value: unknown) {
   }
 }
 
+function explainErrorMessage(errorMessage: string) {
+  const normalized = errorMessage.toLowerCase();
+
+  if (normalized.includes("is not a function")) {
+    return "함수가 필요한 위치에 함수가 아닌 값을 전달했습니다. map/filter/reduce 콜백을 확인하세요.";
+  }
+
+  if (normalized.includes("cannot read") || normalized.includes("undefined")) {
+    return "undefined 값을 참조하고 있습니다. 입력값과 객체/배열 접근 코드를 확인하세요.";
+  }
+
+  if (normalized.includes("module.exports must be a function")) {
+    return "채점기는 module.exports로 내보낸 함수를 실행합니다. 함수가 export 되었는지 확인하세요.";
+  }
+
+  return "실행 중 예외가 발생했습니다. 에러 문구와 입력 케이스를 함께 확인해 보세요.";
+}
+
+function explainFailedResult(expectedOutput: unknown, actualOutput: unknown) {
+  return `기대값(${formatValue(expectedOutput)})과 실제값(${formatValue(actualOutput)})이 다릅니다.`;
+}
+
 export function ResultPanel({ runStatus, isSubmitting, submissionResult, errorMessage }: ResultPanelProps) {
   const isRunPassed = runStatus === "passed";
 
@@ -86,12 +108,16 @@ export function ResultPanel({ runStatus, isSubmitting, submissionResult, errorMe
                       <span className={statusClassName(result.status)}>{statusLabel(result.status)}</span>
                     </div>
                     {result.status === "error" && result.errorMessage && (
-                      <p className="mt-1 text-xs text-app-danger">{result.errorMessage}</p>
+                      <div className="mt-1 space-y-1">
+                        <p className="text-xs text-app-danger">{result.errorMessage}</p>
+                        <p className="text-xs text-app-muted">원인: {explainErrorMessage(result.errorMessage)}</p>
+                      </div>
                     )}
                     {result.status === "failed" && (
-                      <p className="mt-1 text-xs text-app-muted">
-                        expected: {formatValue(result.expectedOutput)} / actual: {formatValue(result.actualOutput)}
-                      </p>
+                      <div className="mt-1 space-y-1 text-xs text-app-muted">
+                        <p>expected: {formatValue(result.expectedOutput)} / actual: {formatValue(result.actualOutput)}</p>
+                        <p>원인: {explainFailedResult(result.expectedOutput, result.actualOutput)}</p>
+                      </div>
                     )}
                   </li>
                 ))}
