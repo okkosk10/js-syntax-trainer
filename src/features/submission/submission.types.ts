@@ -3,6 +3,7 @@ export type SubmissionStatus = "passed" | "failed" | "error";
 export type SubmissionTestResult = {
   testCaseId: string;
   status: SubmissionStatus;
+  input?: unknown;
   actualOutput?: unknown;
   expectedOutput?: unknown;
   errorMessage?: string;

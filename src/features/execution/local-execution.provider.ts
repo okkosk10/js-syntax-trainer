@@ -38,6 +38,7 @@ export class LocalExecutionProvider implements CodeExecutionProvider {
           return {
             testCaseId: test.id,
             status: passed ? ("passed" as const) : ("failed" as const),
+            input: test.input,
             actualOutput,
             expectedOutput: test.expectedOutput,
             runtimeMs: Date.now() - testStartedAt
@@ -46,6 +47,7 @@ export class LocalExecutionProvider implements CodeExecutionProvider {
           return {
             testCaseId: test.id,
             status: "error" as const,
+            input: test.input,
             expectedOutput: test.expectedOutput,
             errorMessage: error instanceof Error ? error.message : "Unknown execution error",
             runtimeMs: Date.now() - testStartedAt
@@ -70,6 +72,7 @@ export class LocalExecutionProvider implements CodeExecutionProvider {
         results: input.tests.map((test) => ({
           testCaseId: test.id,
           status: "error" as const,
+          input: test.input,
           expectedOutput: test.expectedOutput,
           errorMessage: error instanceof Error ? error.message : "Unknown execution error"
         }))

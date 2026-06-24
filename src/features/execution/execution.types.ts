@@ -16,6 +16,7 @@ export type CodeExecutionResult = {
   results: {
     testCaseId: string;
     status: "passed" | "failed" | "error";
+    input?: unknown;
     actualOutput?: unknown;
     expectedOutput?: unknown;
     errorMessage?: string;
