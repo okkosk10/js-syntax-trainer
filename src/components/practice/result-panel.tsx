@@ -32,6 +32,18 @@ function statusClassName(status: SubmissionStatus) {
   return "text-app-danger";
 }
 
+function formatValue(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 export function ResultPanel({ runStatus, isSubmitting, submissionResult, errorMessage }: ResultPanelProps) {
   const isRunPassed = runStatus === "passed";
 
@@ -68,9 +80,19 @@ export function ResultPanel({ runStatus, isSubmitting, submissionResult, errorMe
               </p>
               <ul className="space-y-1.5">
                 {submissionResult.results.map((result, index) => (
-                  <li key={`${result.testCaseId}-${index}`} className="flex items-center justify-between gap-4">
-                    <span className="text-app-muted">테스트 {index + 1}</span>
-                    <span className={statusClassName(result.status)}>{statusLabel(result.status)}</span>
+                  <li key={`${result.testCaseId}-${index}`} className="rounded border border-app-border/70 px-2 py-1.5">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-app-muted">테스트 {index + 1}</span>
+                      <span className={statusClassName(result.status)}>{statusLabel(result.status)}</span>
+                    </div>
+                    {result.status === "error" && result.errorMessage && (
+                      <p className="mt-1 text-xs text-app-danger">{result.errorMessage}</p>
+                    )}
+                    {result.status === "failed" && (
+                      <p className="mt-1 text-xs text-app-muted">
+                        expected: {formatValue(result.expectedOutput)} / actual: {formatValue(result.actualOutput)}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
