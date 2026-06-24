@@ -99,7 +99,7 @@ export function ResultPanel({ runStatus, isSubmitting, submissionResult, errorMe
   const hasDetailedResult = Boolean(errorMessage) || Boolean(submissionResult);
 
   return (
-    <section className={`${hasDetailedResult ? "h-72" : "h-52"} border-t border-app-border bg-app-panel`}>
+    <section className={`${hasDetailedResult ? "h-96" : "h-64"} border-t border-app-border bg-app-panel`}>
       <div className="flex h-10 items-center gap-4 border-b border-app-border px-4 text-sm">
         <span className="font-semibold">테스트 결과</span>
         <span className="text-app-muted">AI 리뷰</span>
