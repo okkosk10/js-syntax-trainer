@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().default("postgresql://postgres:postgres@localhost:5432/js_syntax_trainer?schema=public"),
+  SUBMISSION_MODE: z.enum(["inline", "queued"]).default("inline"),
   REDIS_URL: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   NEXTAUTH_SECRET: z.string().optional(),
@@ -10,6 +11,7 @@ const envSchema = z.object({
 
 export const env = envSchema.parse({
   DATABASE_URL: process.env.DATABASE_URL,
+  SUBMISSION_MODE: process.env.SUBMISSION_MODE,
   REDIS_URL: process.env.REDIS_URL,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,

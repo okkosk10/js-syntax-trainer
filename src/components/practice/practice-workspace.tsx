@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Play, RotateCcw, Send } from "lucide-react";
 import { MonacoCodeEditor } from "@/components/editor/monaco-code-editor";
+import type { ProblemDetail, ProblemListItem } from "@/features/problem/problem.repository";
 import { ProblemPanel } from "./problem-panel";
 import { ProblemSidebar } from "./problem-sidebar";
 import { ResultPanel } from "./result-panel";
@@ -13,9 +14,104 @@ const starterCode = `function doubleNumbers(numbers) {
 
 module.exports = doubleNumbers;`;
 
+const loadingMessages = [
+  "문제 목록을 준비 중입니다...",
+  "서버를 깨우는 중입니다...",
+  "편집기와 테스트 환경을 연결하고 있습니다..."
+];
+
 export function PracticeWorkspace() {
   const [code, setCode] = useState(starterCode);
   const [status, setStatus] = useState<"idle" | "running" | "passed" | "failed">("idle");
+  const [problems, setProblems] = useState<ProblemListItem[]>([]);
+  const [selectedProblemSlug, setSelectedProblemSlug] = useState<string | null>(null);
+  const [selectedProblem, setSelectedProblem] = useState<ProblemDetail | null>(null);
+  const [isLoadingProblems, setIsLoadingProblems] = useState(true);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+
+  const isInitialLoading = isLoadingProblems || (Boolean(selectedProblemSlug) && !selectedProblem);
+
+  useEffect(() => {
+    if (!isInitialLoading) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setLoadingMessageIndex((current) => (current + 1) % loadingMessages.length);
+    }, 1100);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isInitialLoading]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadProblems() {
+      const response = await fetch("/api/problems");
+      const data = (await response.json()) as { problems: ProblemListItem[] };
+
+      if (!isActive) {
+        return;
+      }
+
+      setProblems(data.problems);
+      setSelectedProblemSlug((currentSlug) => currentSlug ?? data.problems[0]?.slug ?? null);
+      setIsLoadingProblems(false);
+    }
+
+    loadProblems().catch(() => {
+      if (isActive) {
+        setProblems([]);
+        setSelectedProblemSlug(null);
+        setIsLoadingProblems(false);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProblemSlug) {
+      setSelectedProblem(null);
+      return;
+    }
+
+    const problemSlug = selectedProblemSlug;
+    let isActive = true;
+
+    async function loadProblem() {
+      const response = await fetch(`/api/problems?slug=${encodeURIComponent(problemSlug)}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to load problem");
+      }
+
+      const data = (await response.json()) as { problem: ProblemDetail };
+
+      if (isActive) {
+        setSelectedProblem(data.problem);
+      }
+    }
+
+    loadProblem().catch(() => {
+      if (isActive) {
+        setSelectedProblem(null);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedProblemSlug]);
+
+  const selectedProblemId = useMemo(
+    () => problems.find((problem) => problem.slug === selectedProblemSlug)?.id ?? null,
+    [problems, selectedProblemSlug]
+  );
 
   function runTests() {
     setStatus("running");
@@ -26,8 +122,30 @@ export function PracticeWorkspace() {
 
   return (
     <main className="flex h-screen overflow-hidden bg-app-bg text-app-text">
-      <ProblemSidebar />
-      <section className="flex min-w-0 flex-1 flex-col">
+      <ProblemSidebar
+        problems={problems}
+        selectedProblemId={selectedProblemId}
+        onSelectProblem={setSelectedProblemSlug}
+      />
+      <section className="relative flex min-w-0 flex-1 flex-col">
+        {isInitialLoading && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-app-bg/90 backdrop-blur-sm">
+            <div className="w-[min(520px,90%)] rounded-2xl border border-app-border bg-app-panel/95 p-6 shadow-[0_0_40px_rgba(0,0,0,0.35)]">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-app-text">실습 환경 준비 중</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-app-accent [animation-delay:-0.2s]" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-app-accent [animation-delay:-0.1s]" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-app-accent" />
+                </div>
+              </div>
+              <p className="mt-2 text-sm text-app-muted">{loadingMessages[loadingMessageIndex]}</p>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-app-surface">
+                <div className="loading-bar h-full w-1/2 rounded-full" />
+              </div>
+            </div>
+          </div>
+        )}
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-app-border bg-app-panel px-3">
           <div className="flex items-center gap-2 text-sm">
             <span className="rounded bg-app-surface px-3 py-1.5">solution.js</span>
@@ -61,7 +179,7 @@ export function PracticeWorkspace() {
           <div className="min-h-0">
             <MonacoCodeEditor value={code} onChange={setCode} />
           </div>
-          <ProblemPanel />
+          <ProblemPanel problem={selectedProblem} />
         </div>
         <ResultPanel status={status} />
       </section>

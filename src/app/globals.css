@@ -21,3 +21,21 @@ input,
 textarea {
   font: inherit;
 }
+
+.loading-bar {
+  background: linear-gradient(90deg, #22d3ee 0%, #34d399 50%, #22d3ee 100%);
+  background-size: 200% 100%;
+  animation: loading-bar-move 1.2s linear infinite;
+}
+
+@keyframes loading-bar-move {
+  0% {
+    transform: translateX(-100%);
+    background-position: 0% 0%;
+  }
+
+  100% {
+    transform: translateX(220%);
+    background-position: 100% 0%;
+  }
+}
