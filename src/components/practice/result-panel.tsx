@@ -11,6 +11,7 @@ type ResultPanelProps = {
   submissionResult: SubmissionResult | null;
   runErrorMessage: string | null;
   submissionErrorMessage: string | null;
+  hasEditorMarkers?: boolean;
 };
 
 function statusLabel(status: SubmissionStatus) {
@@ -118,7 +119,8 @@ export function ResultPanel({
   runResult,
   submissionResult,
   runErrorMessage,
-  submissionErrorMessage
+  submissionErrorMessage,
+  hasEditorMarkers = false
 }: ResultPanelProps) {
   const displayedResult =
     activeResultSource === "run"
@@ -178,6 +180,7 @@ export function ResultPanel({
               <p className="text-app-muted">
                 점수 {displayedResult.score}점 · 실행 시간 {displayedResult.runtimeMs}ms
               </p>
+              {hasEditorMarkers && <p className="text-xs text-app-muted">에디터에서 오류 위치가 강조되었습니다.</p>}
               <ul className="space-y-1.5">
                 {displayedResult.results.map((result, index) => (
                   <li key={`${result.testCaseId}-${index}`} className="rounded border border-app-border/70 px-2 py-1.5">

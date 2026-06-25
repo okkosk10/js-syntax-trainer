@@ -21,6 +21,12 @@ const loadingMessages = [
   "편집기와 테스트 환경을 연결하고 있습니다..."
 ];
 
+type EditorMarker = {
+  line: number;
+  column?: number;
+  message: string;
+};
+
 type CompletionState = {
   open: boolean;
   nextProblemSlug: string | null;
@@ -69,6 +75,63 @@ function findNextProblemSlug(problems: ProblemListItem[], currentProblemId: stri
   return nextByIndex?.slug ?? null;
 }
 
+function parseErrorLocation(errorMessage: string): { line: number; column?: number } | null {
+  const patterns = [
+    /evalmachine\.<anonymous>:(\d+):(\d+)/i,
+    /<anonymous>:(\d+):(\d+)/i,
+    /solution\.js:(\d+):(\d+)/i,
+    /line\s+(\d+)\s+column\s+(\d+)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = errorMessage.match(pattern);
+
+    if (!match) {
+      continue;
+    }
+
+    const line = Number.parseInt(match[1] ?? "", 10);
+    const column = Number.parseInt(match[2] ?? "", 10);
+
+    if (!Number.isNaN(line) && line > 0) {
+      return {
+        line,
+        column: Number.isNaN(column) || column < 1 ? 1 : column
+      };
+    }
+  }
+
+  return null;
+}
+
+function toEditorMarkers(result: Omit<SubmissionResult, "submissionId"> | SubmissionResult | null): EditorMarker[] {
+  if (!result) {
+    return [];
+  }
+
+  const markers: EditorMarker[] = [];
+
+  for (const testResult of result.results) {
+    if (testResult.status !== "error" || !testResult.errorMessage) {
+      continue;
+    }
+
+    const location = parseErrorLocation(testResult.errorMessage);
+
+    if (!location) {
+      continue;
+    }
+
+    markers.push({
+      line: location.line,
+      column: location.column,
+      message: testResult.errorMessage
+    });
+  }
+
+  return markers;
+}
+
 export function PracticeWorkspace() {
   const [code, setCode] = useState(starterCode);
   const [isRunning, setIsRunning] = useState(false);
@@ -84,6 +147,7 @@ export function PracticeWorkspace() {
   const [isLoadingProblems, setIsLoadingProblems] = useState(true);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [completionState, setCompletionState] = useState<CompletionState>(initialCompletionState);
+  const [editorMarkers, setEditorMarkers] = useState<EditorMarker[]>([]);
 
   const isInitialLoading = isLoadingProblems || (Boolean(selectedProblemSlug) && !selectedProblem);
 
@@ -171,12 +235,29 @@ export function PracticeWorkspace() {
     [problems, selectedProblemSlug]
   );
 
+  const displayedResult = useMemo(() => {
+    if (activeResultSource === "run") {
+      return runResult;
+    }
+
+    if (activeResultSource === "submit") {
+      return submissionResult;
+    }
+
+    return null;
+  }, [activeResultSource, runResult, submissionResult]);
+
+  useEffect(() => {
+    setEditorMarkers(toEditorMarkers(displayedResult));
+  }, [displayedResult]);
+
   function resetExecutionState() {
     setRunResult(null);
     setRunError(null);
     setSubmissionResult(null);
     setSubmissionError(null);
     setActiveResultSource(null);
+    setEditorMarkers([]);
   }
 
   function closeCompletionModal() {
@@ -206,6 +287,7 @@ export function PracticeWorkspace() {
     setIsRunning(true);
     setRunError(null);
     setRunResult(null);
+    setEditorMarkers([]);
 
     try {
       const response = await fetch("/api/run", {
@@ -256,7 +338,9 @@ export function PracticeWorkspace() {
 
     setIsSubmitting(true);
     setSubmissionError(null);
+    setSubmissionResult(null);
     setActiveResultSource("submit");
+    setEditorMarkers([]);
 
     try {
       const response = await fetch("/api/submissions", {
@@ -396,7 +480,7 @@ export function PracticeWorkspace() {
         </header>
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_360px]">
           <div className="min-h-0">
-            <MonacoCodeEditor value={code} onChange={setCode} />
+            <MonacoCodeEditor value={code} onChange={setCode} markers={editorMarkers} />
           </div>
           <ProblemPanel problem={selectedProblem} />
         </div>
@@ -408,6 +492,7 @@ export function PracticeWorkspace() {
           runErrorMessage={runError}
           submissionResult={submissionResult}
           submissionErrorMessage={submissionError}
+          hasEditorMarkers={editorMarkers.length > 0}
         />
 
         {completionState.open && (
