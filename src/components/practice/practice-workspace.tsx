@@ -214,7 +214,14 @@ export function PracticeWorkspace() {
       const data = (await response.json()) as { problem: ProblemDetail };
 
       if (isActive) {
-        setSelectedProblem(data.problem);
+        const localProgress =
+          problems.find((problem) => problem.slug === data.problem.slug)?.progress ??
+          problems.find((problem) => problem.id === data.problem.id)?.progress;
+
+        setSelectedProblem({
+          ...data.problem,
+          progress: localProgress ?? data.problem.progress
+        });
         setCode(data.problem.starterCode);
       }
     }
@@ -229,7 +236,7 @@ export function PracticeWorkspace() {
     return () => {
       isActive = false;
     };
-  }, [selectedProblemSlug]);
+  }, [problems, selectedProblemSlug]);
 
   const selectedProblemId = useMemo(
     () => problems.find((problem) => problem.slug === selectedProblemSlug)?.id ?? null,
@@ -441,7 +448,7 @@ export function PracticeWorkspace() {
       setProblems(nextProblems);
 
       setSelectedProblem((currentProblem) => {
-        if (!currentProblem || currentProblem.id !== selectedProblemId) {
+        if (!currentProblem || currentProblem.slug !== selectedProblemSlug) {
           return currentProblem;
         }
 
