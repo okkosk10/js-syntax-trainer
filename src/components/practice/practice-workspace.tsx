@@ -21,6 +21,8 @@ const loadingMessages = [
   "편집기와 테스트 환경을 연결하고 있습니다..."
 ];
 
+const DRAFT_STORAGE_KEY = "js-syntax-trainer:problem-drafts:v1";
+
 type EditorMarker = {
   line: number;
   column?: number;
@@ -132,6 +134,55 @@ function toEditorMarkers(result: Omit<SubmissionResult, "submissionId"> | Submis
   return markers;
 }
 
+function readDraftMap() {
+  if (typeof window === "undefined") {
+    return {} as Record<string, string>;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+
+    if (!raw) {
+      return {};
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+
+    if (!parsed || typeof parsed !== "object") {
+      return {};
+    }
+
+    return parsed as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function writeDraftMap(nextMap: Record<string, string>) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(nextMap));
+  } catch {
+    // Ignore storage errors to avoid breaking the practice flow.
+  }
+}
+
+function readDraftBySlug(slug: string) {
+  const draftMap = readDraftMap();
+  const draft = draftMap[slug];
+
+  return typeof draft === "string" ? draft : null;
+}
+
+function writeDraftBySlug(slug: string, draft: string) {
+  const draftMap = readDraftMap();
+  draftMap[slug] = draft;
+  writeDraftMap(draftMap);
+}
+
 export function PracticeWorkspace() {
   const [code, setCode] = useState(starterCode);
   const [isRunning, setIsRunning] = useState(false);
@@ -215,7 +266,8 @@ export function PracticeWorkspace() {
 
       if (isActive) {
         setSelectedProblem(data.problem);
-        setCode(data.problem.starterCode);
+        const savedDraft = readDraftBySlug(problemSlug);
+        setCode(savedDraft ?? data.problem.starterCode);
       }
     }
 
@@ -230,6 +282,14 @@ export function PracticeWorkspace() {
       isActive = false;
     };
   }, [selectedProblemSlug]);
+
+  useEffect(() => {
+    if (!selectedProblemSlug || !selectedProblem || selectedProblem.slug !== selectedProblemSlug) {
+      return;
+    }
+
+    writeDraftBySlug(selectedProblemSlug, code);
+  }, [code, selectedProblem, selectedProblemSlug]);
 
   useEffect(() => {
     if (!selectedProblemSlug) {
@@ -335,7 +395,6 @@ export function PracticeWorkspace() {
       return;
     }
 
-    setCode("");
     resetExecutionState();
     closeCompletionModal();
     setSelectedProblemSlug(problemSlug);
