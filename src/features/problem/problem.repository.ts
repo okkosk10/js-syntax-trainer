@@ -116,7 +116,7 @@ export const problemRepository = {
     const [problems, progressMap] = await Promise.all([
       prisma.problem.findMany({
         where: { isPublished: true },
-        orderBy: [{ difficulty: "asc" }, { createdAt: "desc" }]
+        orderBy: [{ difficulty: "asc" }, { createdAt: "desc" }, { slug: "asc" }]
       }),
       getDemoProgressMap()
     ]);
@@ -128,7 +128,7 @@ export const problemRepository = {
     const [problems, progressMap] = await Promise.all([
       prisma.problem.findMany({
         where: { isPublished: true },
-        orderBy: [{ difficulty: "asc" }, { createdAt: "desc" }]
+        orderBy: [{ difficulty: "asc" }, { createdAt: "desc" }, { slug: "asc" }]
       }),
       getDemoProgressMap()
     ]);
