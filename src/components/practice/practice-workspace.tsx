@@ -321,8 +321,6 @@ export function PracticeWorkspace() {
 
     setIsRunning(true);
     setRunError(null);
-    setRunResult(null);
-    setEditorMarkers([]);
 
     try {
       const response = await fetch("/api/run", {
@@ -374,9 +372,7 @@ export function PracticeWorkspace() {
 
     setIsSubmitting(true);
     setSubmissionError(null);
-    setSubmissionResult(null);
     setActiveResultSource("submit");
-    setEditorMarkers([]);
 
     try {
       const response = await fetch("/api/submissions", {
