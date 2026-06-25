@@ -21,6 +21,18 @@ const loadingMessages = [
   "편집기와 테스트 환경을 연결하고 있습니다..."
 ];
 
+type CompletionState = {
+  open: boolean;
+  nextProblemSlug: string | null;
+  allCompleted: boolean;
+};
+
+const initialCompletionState: CompletionState = {
+  open: false,
+  nextProblemSlug: null,
+  allCompleted: false
+};
+
 function nextProblemProgress(previous: ProblemProgress | undefined, submission: SubmissionResult): ProblemProgress {
   const attempts = (previous?.attempts ?? 0) + 1;
   const passed = (previous?.passed ?? false) || submission.status === "passed";
@@ -32,6 +44,29 @@ function nextProblemProgress(previous: ProblemProgress | undefined, submission: 
     bestScore,
     lastSubmittedAt: new Date().toISOString()
   };
+}
+
+function isSolved(problem: ProblemListItem) {
+  return problem.progress?.passed ?? false;
+}
+
+function findNextProblemSlug(problems: ProblemListItem[], currentProblemId: string): string | null {
+  const currentIndex = problems.findIndex((problem) => problem.id === currentProblemId);
+
+  if (currentIndex < 0) {
+    return null;
+  }
+
+  const nextProblems = problems.slice(currentIndex + 1);
+  const nextUnsolved = nextProblems.find((problem) => !isSolved(problem));
+
+  if (nextUnsolved) {
+    return nextUnsolved.slug;
+  }
+
+  const nextByIndex = problems[currentIndex + 1];
+
+  return nextByIndex?.slug ?? null;
 }
 
 export function PracticeWorkspace() {
@@ -48,6 +83,7 @@ export function PracticeWorkspace() {
   const [selectedProblem, setSelectedProblem] = useState<ProblemDetail | null>(null);
   const [isLoadingProblems, setIsLoadingProblems] = useState(true);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+  const [completionState, setCompletionState] = useState<CompletionState>(initialCompletionState);
 
   const isInitialLoading = isLoadingProblems || (Boolean(selectedProblemSlug) && !selectedProblem);
 
@@ -114,12 +150,14 @@ export function PracticeWorkspace() {
 
       if (isActive) {
         setSelectedProblem(data.problem);
+        setCode(data.problem.starterCode);
       }
     }
 
     loadProblem().catch(() => {
       if (isActive) {
         setSelectedProblem(null);
+        setCode("");
       }
     });
 
@@ -132,6 +170,29 @@ export function PracticeWorkspace() {
     () => problems.find((problem) => problem.slug === selectedProblemSlug)?.id ?? null,
     [problems, selectedProblemSlug]
   );
+
+  function resetExecutionState() {
+    setRunResult(null);
+    setRunError(null);
+    setSubmissionResult(null);
+    setSubmissionError(null);
+    setActiveResultSource(null);
+  }
+
+  function closeCompletionModal() {
+    setCompletionState(initialCompletionState);
+  }
+
+  function moveToProblem(problemSlug: string) {
+    if (problemSlug === selectedProblemSlug) {
+      return;
+    }
+
+    setCode("");
+    resetExecutionState();
+    closeCompletionModal();
+    setSelectedProblemSlug(problemSlug);
+  }
 
   async function runTests() {
     setActiveResultSource("run");
@@ -232,8 +293,10 @@ export function PracticeWorkspace() {
       const submission = data as SubmissionResult;
       setSubmissionResult(submission);
 
-      setProblems((currentProblems) =>
-        currentProblems.map((problem) => {
+      let nextCompletion = initialCompletionState;
+
+      setProblems((currentProblems) => {
+        const nextProblems = currentProblems.map((problem) => {
           if (problem.id !== selectedProblemId) {
             return problem;
           }
@@ -242,8 +305,19 @@ export function PracticeWorkspace() {
             ...problem,
             progress: nextProblemProgress(problem.progress, submission)
           };
-        })
-      );
+        });
+
+        if (submission.status === "passed") {
+          const nextProblemSlug = findNextProblemSlug(nextProblems, selectedProblemId);
+          nextCompletion = {
+            open: true,
+            nextProblemSlug,
+            allCompleted: nextProblemSlug === null
+          };
+        }
+
+        return nextProblems;
+      });
 
       setSelectedProblem((currentProblem) => {
         if (!currentProblem || currentProblem.id !== selectedProblemId) {
@@ -255,6 +329,10 @@ export function PracticeWorkspace() {
           progress: nextProblemProgress(currentProblem.progress, submission)
         };
       });
+
+      if (submission.status === "passed") {
+        setCompletionState(nextCompletion);
+      }
     } catch (error) {
       setSubmissionResult(null);
       setSubmissionError(error instanceof Error ? error.message : "네트워크 오류가 발생했습니다.");
@@ -268,7 +346,7 @@ export function PracticeWorkspace() {
       <ProblemSidebar
         problems={problems}
         selectedProblemId={selectedProblemId}
-        onSelectProblem={setSelectedProblemSlug}
+        onSelectProblem={moveToProblem}
       />
       <section className="relative flex min-w-0 flex-1 flex-col">
         {isInitialLoading && (
@@ -299,11 +377,8 @@ export function PracticeWorkspace() {
               className="inline-flex h-8 items-center gap-2 rounded-md border border-app-border px-3 text-sm hover:bg-app-surface"
               onClick={() => {
                 setCode(starterCode);
-                setRunResult(null);
-                setRunError(null);
-                setSubmissionResult(null);
-                setSubmissionError(null);
-                setActiveResultSource(null);
+                resetExecutionState();
+                closeCompletionModal();
               }}
             >
               <RotateCcw className="h-4 w-4" />
@@ -342,6 +417,36 @@ export function PracticeWorkspace() {
           submissionResult={submissionResult}
           submissionErrorMessage={submissionError}
         />
+
+        {completionState.open && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 px-4">
+            <div className="w-full max-w-md rounded-xl border border-app-border bg-app-panel p-5 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+              <p className="text-xs font-semibold uppercase tracking-wide text-app-accent">Submit Completed</p>
+              <h3 className="mt-2 text-lg font-semibold text-app-text">정답 제출을 완료했습니다.</h3>
+              <p className="mt-2 text-sm text-app-muted">
+                {completionState.allCompleted
+                  ? "모든 문제 완료 상태입니다. 복습하거나 다른 풀이를 시도해 보세요."
+                  : "아직 해결하지 않은 다음 문제로 이동할 수 있습니다."}
+              </p>
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <button
+                  className="inline-flex h-9 items-center rounded-md border border-app-border px-3 text-sm hover:bg-app-surface"
+                  onClick={closeCompletionModal}
+                >
+                  닫기
+                </button>
+                {completionState.nextProblemSlug && (
+                  <button
+                    className="inline-flex h-9 items-center rounded-md bg-app-accent px-3 text-sm font-semibold text-black"
+                    onClick={() => moveToProblem(completionState.nextProblemSlug!)}
+                  >
+                    다음 문제
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );
