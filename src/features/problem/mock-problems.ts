@@ -1,6 +1,27 @@
 import type { ProblemDetail, ProblemListItem } from "@/features/problem/problem.repository";
 
-const mockProblemDetails: ProblemDetail[] = [
+type MockProblemTestCase = {
+  id: string;
+  input: unknown;
+  expectedOutput: unknown;
+  isHidden: boolean;
+  order: number;
+};
+
+type MockProblemInternal = ProblemDetail & {
+  testCases: MockProblemTestCase[];
+};
+
+type MockProblemExecution = {
+  id: string;
+  testCases: {
+    id: string;
+    input: unknown;
+    expectedOutput: unknown;
+  }[];
+};
+
+const mockProblems: MockProblemInternal[] = [
   {
     id: "mock-double-numbers",
     slug: "double-numbers",
@@ -15,7 +36,13 @@ const mockProblemDetails: ProblemDetail[] = [
 }
 
 module.exports = doubleNumbers;`,
-    explanation: "예: [1, 2, 3] -> [2, 4, 6]"
+    explanation: "예: [1, 2, 3] -> [2, 4, 6]",
+    testCases: [
+      { id: "mock-double-numbers-1", input: [1, 2, 3], expectedOutput: [2, 4, 6], isHidden: false, order: 1 },
+      { id: "mock-double-numbers-2", input: [0, -2, 5], expectedOutput: [0, -4, 10], isHidden: false, order: 2 },
+      { id: "mock-double-numbers-3", input: [], expectedOutput: [], isHidden: false, order: 3 },
+      { id: "mock-double-numbers-4", input: [100, -100, 7], expectedOutput: [200, -200, 14], isHidden: true, order: 4 }
+    ]
   },
   {
     id: "mock-count-vowels",
@@ -30,12 +57,32 @@ module.exports = doubleNumbers;`,
 }
 
 module.exports = countVowels;`,
-    explanation: "예: 'Hello' -> 2"
+    explanation: "예: 'Hello' -> 2",
+    testCases: [
+      { id: "mock-count-vowels-1", input: "Hello", expectedOutput: 2, isHidden: false, order: 1 },
+      { id: "mock-count-vowels-2", input: "JavaScript", expectedOutput: 3, isHidden: false, order: 2 },
+      { id: "mock-count-vowels-3", input: "BCD", expectedOutput: 0, isHidden: false, order: 3 },
+      { id: "mock-count-vowels-4", input: "Queueing", expectedOutput: 5, isHidden: true, order: 4 }
+    ]
   }
 ];
 
+function toProblemDetail(problem: MockProblemInternal): ProblemDetail {
+  return {
+    id: problem.id,
+    slug: problem.slug,
+    title: problem.title,
+    difficulty: problem.difficulty,
+    category: problem.category,
+    tags: problem.tags,
+    description: problem.description,
+    starterCode: problem.starterCode,
+    explanation: problem.explanation
+  };
+}
+
 export function getMockProblemList(): ProblemListItem[] {
-  return mockProblemDetails.map((problem) => ({
+  return mockProblems.map((problem) => ({
     id: problem.id,
     slug: problem.slug,
     title: problem.title,
@@ -46,9 +93,31 @@ export function getMockProblemList(): ProblemListItem[] {
 }
 
 export function getMockProblemDetailBySlug(slug: string): ProblemDetail | null {
-  return mockProblemDetails.find((problem) => problem.slug === slug) ?? null;
+  const problem = mockProblems.find((item) => item.slug === slug);
+
+  return problem ? toProblemDetail(problem) : null;
 }
 
 export function getInitialMockProblemDetail(): ProblemDetail | null {
-  return mockProblemDetails[0] ?? null;
+  return mockProblems[0] ? toProblemDetail(mockProblems[0]) : null;
+}
+
+export function getMockProblemExecutionById(problemId: string): MockProblemExecution | null {
+  const problem = mockProblems.find((item) => item.id === problemId);
+
+  if (!problem) {
+    return null;
+  }
+
+  return {
+    id: problem.id,
+    testCases: problem.testCases
+      .filter((testCase) => !testCase.isHidden)
+      .sort((left, right) => left.order - right.order)
+      .map((testCase) => ({
+        id: testCase.id,
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput
+      }))
+  };
 }

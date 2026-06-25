@@ -9,11 +9,43 @@ function isEqual(actual: unknown, expected: unknown) {
   return JSON.stringify(actual) === JSON.stringify(expected);
 }
 
+type ExecutionSandbox = {
+  module: { exports: unknown };
+  exports: unknown;
+  __solution?: unknown;
+  __testInput?: unknown[];
+  __actualOutput?: unknown;
+};
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function runSolutionInContext(
+  sandbox: ExecutionSandbox,
+  solution: (...args: unknown[]) => unknown,
+  testInput: unknown[],
+  timeoutMs: number
+) {
+  sandbox.__solution = solution;
+  sandbox.__testInput = testInput;
+  sandbox.__actualOutput = undefined;
+
+  try {
+    vm.runInContext("__actualOutput = __solution(...__testInput)", sandbox, { timeout: timeoutMs });
+    return sandbox.__actualOutput;
+  } finally {
+    delete sandbox.__solution;
+    delete sandbox.__testInput;
+    delete sandbox.__actualOutput;
+  }
+}
+
 export class LocalExecutionProvider implements CodeExecutionProvider {
   async run(input: CodeExecutionInput): Promise<CodeExecutionResult> {
     const startedAt = Date.now();
 
-    const sandbox = {
+    const sandbox: ExecutionSandbox = {
       module: { exports: undefined as unknown },
       exports: undefined as unknown
     };
@@ -28,11 +60,18 @@ export class LocalExecutionProvider implements CodeExecutionProvider {
         throw new Error("module.exports must be a function.");
       }
 
+      const executableSolution = solution as (...args: unknown[]) => unknown;
+
       const results = input.tests.map((test) => {
         const testStartedAt = Date.now();
 
         try {
-          const actualOutput = solution(...normalizeInput(test.input));
+          const actualOutput = runSolutionInContext(
+            sandbox,
+            executableSolution,
+            normalizeInput(test.input),
+            input.timeoutMs
+          );
           const passed = isEqual(actualOutput, test.expectedOutput);
 
           return {
@@ -49,7 +88,7 @@ export class LocalExecutionProvider implements CodeExecutionProvider {
             status: "error" as const,
             input: test.input,
             expectedOutput: test.expectedOutput,
-            errorMessage: error instanceof Error ? error.message : "Unknown execution error",
+            errorMessage: getErrorMessage(error),
             runtimeMs: Date.now() - testStartedAt
           };
         }
@@ -74,7 +113,7 @@ export class LocalExecutionProvider implements CodeExecutionProvider {
           status: "error" as const,
           input: test.input,
           expectedOutput: test.expectedOutput,
-          errorMessage: error instanceof Error ? error.message : "Unknown execution error"
+          errorMessage: getErrorMessage(error)
         }))
       };
     }

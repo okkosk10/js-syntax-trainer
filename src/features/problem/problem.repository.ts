@@ -20,6 +20,15 @@ export type ProblemListResponse = {
   initialProblem: ProblemDetail | null;
 };
 
+export type ProblemExecution = {
+  id: string;
+  testCases: {
+    id: string;
+    input: unknown;
+    expectedOutput: unknown;
+  }[];
+};
+
 function toProblemListItem(problem: {
   id: string;
   slug: string;
@@ -87,5 +96,32 @@ export const problemRepository = {
         }
       }
     }).then((problem) => (problem ? toProblemDetail(problem) : null));
+  },
+
+  findPublicExecutionById(id: string): Promise<ProblemExecution | null> {
+    return prisma.problem
+      .findUnique({
+        where: { id },
+        include: {
+          testCases: {
+            where: { isHidden: false },
+            orderBy: { order: "asc" }
+          }
+        }
+      })
+      .then((problem) => {
+        if (!problem) {
+          return null;
+        }
+
+        return {
+          id: problem.id,
+          testCases: problem.testCases.map((testCase) => ({
+            id: testCase.id,
+            input: testCase.input,
+            expectedOutput: testCase.expectedOutput
+          }))
+        };
+      });
   }
 };
