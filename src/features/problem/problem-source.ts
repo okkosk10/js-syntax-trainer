@@ -57,13 +57,15 @@ function ensureBackgroundProbe() {
 }
 
 export async function queryProblemDatabase<T>(query: () => Promise<T>): Promise<DatabaseQueryResult<T>> {
-  if (dbState !== "up") {
+  if (dbState === "down") {
     ensureBackgroundProbe();
     return { source: "fallback" };
   }
 
   try {
     const value = await withTimeout(query(), ACTIVE_DB_TIMEOUT_MS);
+    dbState = "up";
+
     return {
       source: "db",
       value

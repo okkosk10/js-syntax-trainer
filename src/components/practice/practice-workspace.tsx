@@ -214,14 +214,7 @@ export function PracticeWorkspace() {
       const data = (await response.json()) as { problem: ProblemDetail };
 
       if (isActive) {
-        const localProgress =
-          problems.find((problem) => problem.slug === data.problem.slug)?.progress ??
-          problems.find((problem) => problem.id === data.problem.id)?.progress;
-
-        setSelectedProblem({
-          ...data.problem,
-          progress: localProgress ?? data.problem.progress
-        });
+        setSelectedProblem(data.problem);
         setCode(data.problem.starterCode);
       }
     }
@@ -236,6 +229,40 @@ export function PracticeWorkspace() {
     return () => {
       isActive = false;
     };
+  }, [selectedProblemSlug]);
+
+  useEffect(() => {
+    if (!selectedProblemSlug) {
+      return;
+    }
+
+    const localProgress = problems.find((problem) => problem.slug === selectedProblemSlug)?.progress;
+
+    if (!localProgress) {
+      return;
+    }
+
+    setSelectedProblem((currentProblem) => {
+      if (!currentProblem || currentProblem.slug !== selectedProblemSlug) {
+        return currentProblem;
+      }
+
+      const currentProgress = currentProblem.progress;
+      const isSameProgress =
+        currentProgress?.attempts === localProgress.attempts &&
+        currentProgress?.passed === localProgress.passed &&
+        currentProgress?.bestScore === localProgress.bestScore &&
+        currentProgress?.lastSubmittedAt === localProgress.lastSubmittedAt;
+
+      if (isSameProgress) {
+        return currentProblem;
+      }
+
+      return {
+        ...currentProblem,
+        progress: localProgress
+      };
+    });
   }, [problems, selectedProblemSlug]);
 
   const selectedProblemId = useMemo(
