@@ -293,31 +293,18 @@ export function PracticeWorkspace() {
       const submission = data as SubmissionResult;
       setSubmissionResult(submission);
 
-      let nextCompletion = initialCompletionState;
-
-      setProblems((currentProblems) => {
-        const nextProblems = currentProblems.map((problem) => {
-          if (problem.id !== selectedProblemId) {
-            return problem;
-          }
-
-          return {
-            ...problem,
-            progress: nextProblemProgress(problem.progress, submission)
-          };
-        });
-
-        if (submission.status === "passed") {
-          const nextProblemSlug = findNextProblemSlug(nextProblems, selectedProblemId);
-          nextCompletion = {
-            open: true,
-            nextProblemSlug,
-            allCompleted: nextProblemSlug === null
-          };
+      const nextProblems = problems.map((problem) => {
+        if (problem.id !== selectedProblemId) {
+          return problem;
         }
 
-        return nextProblems;
+        return {
+          ...problem,
+          progress: nextProblemProgress(problem.progress, submission)
+        };
       });
+
+      setProblems(nextProblems);
 
       setSelectedProblem((currentProblem) => {
         if (!currentProblem || currentProblem.id !== selectedProblemId) {
@@ -331,7 +318,12 @@ export function PracticeWorkspace() {
       });
 
       if (submission.status === "passed") {
-        setCompletionState(nextCompletion);
+        const nextProblemSlug = findNextProblemSlug(nextProblems, selectedProblemId);
+        setCompletionState({
+          open: true,
+          nextProblemSlug,
+          allCompleted: nextProblemSlug === null
+        });
       }
     } catch (error) {
       setSubmissionResult(null);
