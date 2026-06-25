@@ -1,4 +1,5 @@
 import type { ProblemDetail, ProblemListItem, ProblemProgress } from "@/features/problem/problem.repository";
+import { getHintsByProblemSlug } from "@/features/problem/problem-hints";
 
 type MockProblemTestCase = {
   id: string;
@@ -78,6 +79,7 @@ function toProblemDetail(problem: MockProblemInternal): ProblemDetail {
     description: problem.description,
     starterCode: problem.starterCode,
     explanation: problem.explanation,
+    hints: getHintsByProblemSlug(problem.slug),
     progress: {
       attempts: 0,
       passed: false,

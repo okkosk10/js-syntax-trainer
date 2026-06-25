@@ -2,6 +2,7 @@ import type { ProblemDetail } from "@/features/problem/problem.repository";
 
 type ProblemPanelProps = {
   problem: ProblemDetail | null;
+  visibleHints?: string[];
 };
 
 function formatDifficultyLabel(difficulty: string) {
@@ -31,7 +32,7 @@ function getProgressLine(problem: ProblemDetail) {
   };
 }
 
-export function ProblemPanel({ problem }: ProblemPanelProps) {
+export function ProblemPanel({ problem, visibleHints = [] }: ProblemPanelProps) {
   if (!problem) {
     return (
       <section className="h-full overflow-auto border-l border-app-border bg-app-panel">
@@ -71,6 +72,16 @@ export function ProblemPanel({ problem }: ProblemPanelProps) {
           <h3 className="mb-2 text-sm font-semibold text-app-text">평가 기준</h3>
           <p>공개 테스트와 숨김 테스트를 모두 통과해야 완료됩니다.</p>
         </div>
+        {visibleHints.length > 0 && (
+          <div className="rounded-md border border-app-accent/35 bg-app-accent/10 p-3">
+            <h3 className="text-sm font-semibold text-app-text">{visibleHints.length > 1 ? "Hints" : "Hint"}</h3>
+            <ul className="mt-2 space-y-1 text-sm text-app-muted">
+              {visibleHints.map((hint, index) => (
+                <li key={`${hint}-${index}`}>{index + 1}. {hint}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </section>
   );

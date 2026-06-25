@@ -148,6 +148,7 @@ export function PracticeWorkspace() {
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [completionState, setCompletionState] = useState<CompletionState>(initialCompletionState);
   const [editorMarkers, setEditorMarkers] = useState<EditorMarker[]>([]);
+  const [failureStreakByProblem, setFailureStreakByProblem] = useState<Record<string, number>>({});
 
   const isInitialLoading = isLoadingProblems || (Boolean(selectedProblemSlug) && !selectedProblem);
 
@@ -235,6 +236,20 @@ export function PracticeWorkspace() {
     [problems, selectedProblemSlug]
   );
 
+  const selectedProblemHints = useMemo(() => {
+    if (!selectedProblemId || !selectedProblem?.hints || selectedProblem.hints.length === 0) {
+      return [];
+    }
+
+    const streak = failureStreakByProblem[selectedProblemId] ?? 0;
+
+    if (streak <= 0) {
+      return [];
+    }
+
+    return selectedProblem.hints.slice(0, Math.min(streak, selectedProblem.hints.length));
+  }, [failureStreakByProblem, selectedProblem, selectedProblemId]);
+
   const displayedResult = useMemo(() => {
     if (activeResultSource === "run") {
       return runResult;
@@ -273,6 +288,26 @@ export function PracticeWorkspace() {
     resetExecutionState();
     closeCompletionModal();
     setSelectedProblemSlug(problemSlug);
+  }
+
+  function updateFailureStreak(problemId: string, status: "passed" | "failed" | "error") {
+    setFailureStreakByProblem((current) => {
+      if (status === "passed") {
+        if (!current[problemId]) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [problemId]: 0
+        };
+      }
+
+      return {
+        ...current,
+        [problemId]: (current[problemId] ?? 0) + 1
+      };
+    });
   }
 
   async function runTests() {
@@ -321,6 +356,7 @@ export function PracticeWorkspace() {
       }
 
       setRunResult(data);
+      updateFailureStreak(selectedProblemId, data.status);
     } catch (error) {
       setRunResult(null);
       setRunError(error instanceof Error ? error.message : "네트워크 오류가 발생했습니다.");
@@ -376,6 +412,7 @@ export function PracticeWorkspace() {
 
       const submission = data as SubmissionResult;
       setSubmissionResult(submission);
+      updateFailureStreak(selectedProblemId, submission.status);
 
       const nextProblems = problems.map((problem) => {
         if (problem.id !== selectedProblemId) {
@@ -482,7 +519,7 @@ export function PracticeWorkspace() {
           <div className="min-h-0">
             <MonacoCodeEditor value={code} onChange={setCode} markers={editorMarkers} />
           </div>
-          <ProblemPanel problem={selectedProblem} />
+          <ProblemPanel problem={selectedProblem} visibleHints={selectedProblemHints} />
         </div>
         <ResultPanel
           activeResultSource={activeResultSource}

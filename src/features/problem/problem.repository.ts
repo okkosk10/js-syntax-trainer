@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getHintsByProblemSlug } from "@/features/problem/problem-hints";
 
 const DEMO_USER_EMAIL = "demo@js-syntax-trainer.local";
 
@@ -23,6 +24,7 @@ export type ProblemDetail = ProblemListItem & {
   description: string;
   starterCode: string;
   explanation: string | null;
+  hints?: string[];
 };
 
 export type ProblemListResponse = {
@@ -73,7 +75,8 @@ function toProblemDetail(problem: {
     ...toProblemListItem(problem, progress),
     description: problem.description,
     starterCode: problem.starterCode,
-    explanation: problem.explanation
+    explanation: problem.explanation,
+    hints: getHintsByProblemSlug(problem.slug)
   };
 }
 
