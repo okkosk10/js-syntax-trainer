@@ -1,11 +1,16 @@
 import { Bot, CheckCircle2, CircleAlert } from "lucide-react";
 import type { SubmissionResult, SubmissionStatus } from "@/features/submission/submission.types";
 
+type ResultSource = "run" | "submit";
+
 type ResultPanelProps = {
-  runStatus: "idle" | "running" | "passed" | "failed";
+  activeResultSource: ResultSource | null;
+  isRunning: boolean;
   isSubmitting: boolean;
+  runResult: Omit<SubmissionResult, "submissionId"> | null;
   submissionResult: SubmissionResult | null;
-  errorMessage: string | null;
+  runErrorMessage: string | null;
+  submissionErrorMessage: string | null;
 };
 
 function statusLabel(status: SubmissionStatus) {
@@ -94,9 +99,45 @@ function describeEvaluationFocus(input: unknown) {
   return "입력값 처리와 반환 형식의 일관성을 검증합니다.";
 }
 
-export function ResultPanel({ runStatus, isSubmitting, submissionResult, errorMessage }: ResultPanelProps) {
-  const isRunPassed = runStatus === "passed";
-  const hasDetailedResult = Boolean(errorMessage) || Boolean(submissionResult);
+function sourceLabel(source: ResultSource | null) {
+  if (source === "run") {
+    return "Run · 공개 테스트";
+  }
+
+  if (source === "submit") {
+    return "Submit · 전체 테스트";
+  }
+
+  return "";
+}
+
+export function ResultPanel({
+  activeResultSource,
+  isRunning,
+  isSubmitting,
+  runResult,
+  submissionResult,
+  runErrorMessage,
+  submissionErrorMessage
+}: ResultPanelProps) {
+  const displayedResult =
+    activeResultSource === "run"
+      ? runResult
+      : activeResultSource === "submit"
+        ? submissionResult
+        : null;
+
+  const displayedError =
+    activeResultSource === "run"
+      ? runErrorMessage
+      : activeResultSource === "submit"
+        ? submissionErrorMessage
+        : null;
+
+  const isLoading =
+    activeResultSource === "run" ? isRunning : activeResultSource === "submit" ? isSubmitting : false;
+
+  const hasDetailedResult = Boolean(displayedError) || Boolean(displayedResult);
 
   return (
     <section className={`${hasDetailedResult ? "h-96" : "h-64"} border-t border-app-border bg-app-panel`}>
@@ -107,30 +148,38 @@ export function ResultPanel({ runStatus, isSubmitting, submissionResult, errorMe
       </div>
       <div className="grid h-[calc(100%-2.5rem)] grid-cols-1 gap-0 overflow-hidden md:grid-cols-2">
         <div className="overflow-y-auto border-r border-app-border p-4">
-          {errorMessage && (
+          {displayedError && (
             <div className="rounded-md border border-app-danger/40 bg-app-danger/10 p-3">
-              <p className="text-sm font-semibold text-app-danger">제출 실패</p>
-              <p className="mt-1 text-sm text-app-danger/90">{errorMessage}</p>
+              <p className="text-sm font-semibold text-app-danger">
+                {activeResultSource === "run" ? "실행 실패" : "제출 실패"}
+              </p>
+              <p className="mt-1 text-xs text-app-muted">{sourceLabel(activeResultSource)}</p>
+              <p className="mt-1 text-sm text-app-danger/90">{displayedError}</p>
             </div>
           )}
-          {!errorMessage && isSubmitting && <p className="text-sm text-app-muted">제출 중...</p>}
-          {!errorMessage && !isSubmitting && submissionResult && (
+          {!displayedError && isLoading && (
+            <p className="text-sm text-app-muted">
+              {activeResultSource === "run" ? "공개 테스트 실행 중..." : "전체 테스트 제출 중..."}
+            </p>
+          )}
+          {!displayedError && !isLoading && displayedResult && (
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-2">
-                {submissionResult.status === "passed" ? (
+                {displayedResult.status === "passed" ? (
                   <CheckCircle2 className="h-5 w-5 text-app-accent" />
                 ) : (
                   <CircleAlert className="h-5 w-5 text-app-danger" />
                 )}
                 <p className="font-semibold">
-                  제출 결과: <span className={statusClassName(submissionResult.status)}>{statusLabel(submissionResult.status)}</span>
+                  {activeResultSource === "run" ? "실행 결과" : "제출 결과"}: <span className={statusClassName(displayedResult.status)}>{statusLabel(displayedResult.status)}</span>
                 </p>
               </div>
+              <p className="text-xs text-app-muted">{sourceLabel(activeResultSource)}</p>
               <p className="text-app-muted">
-                점수 {submissionResult.score}점 · 실행 시간 {submissionResult.runtimeMs}ms
+                점수 {displayedResult.score}점 · 실행 시간 {displayedResult.runtimeMs}ms
               </p>
               <ul className="space-y-1.5">
-                {submissionResult.results.map((result, index) => (
+                {displayedResult.results.map((result, index) => (
                   <li key={`${result.testCaseId}-${index}`} className="rounded border border-app-border/70 px-2 py-1.5">
                     <div className="flex items-center justify-between gap-4">
                       <span className="text-app-muted">테스트 {index + 1}</span>
@@ -154,26 +203,11 @@ export function ResultPanel({ runStatus, isSubmitting, submissionResult, errorMe
               </ul>
             </div>
           )}
-          {!errorMessage && !isSubmitting && !submissionResult && runStatus === "idle" && (
+          {!displayedError && !isLoading && !displayedResult && !activeResultSource && (
             <p className="text-sm text-app-muted">Run 버튼으로 공개 테스트를 실행하세요.</p>
           )}
-          {!errorMessage && !isSubmitting && !submissionResult && runStatus === "running" && (
-            <p className="text-sm text-app-muted">테스트 실행 중...</p>
-          )}
-          {!errorMessage && !isSubmitting && !submissionResult && runStatus !== "idle" && runStatus !== "running" && (
-            <div className="flex items-start gap-3">
-              {isRunPassed ? (
-                <CheckCircle2 className="h-5 w-5 text-app-accent" />
-              ) : (
-                <CircleAlert className="h-5 w-5 text-app-danger" />
-              )}
-              <div>
-                <p className="text-sm font-semibold">{isRunPassed ? "3개 테스트 통과" : "1개 테스트 실패"}</p>
-                <p className="mt-1 text-sm text-app-muted">
-                  {isRunPassed ? "제출하면 숨김 테스트까지 검증합니다." : "빈 배열 입력 케이스를 확인하세요."}
-                </p>
-              </div>
-            </div>
+          {!displayedError && !isLoading && !displayedResult && activeResultSource && (
+            <p className="text-sm text-app-muted">결과를 기다리는 중입니다.</p>
           )}
         </div>
         <div className="overflow-y-auto p-4">

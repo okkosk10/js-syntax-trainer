@@ -23,10 +23,13 @@ const loadingMessages = [
 
 export function PracticeWorkspace() {
   const [code, setCode] = useState(starterCode);
-  const [runStatus, setRunStatus] = useState<"idle" | "running" | "passed" | "failed">("idle");
+  const [isRunning, setIsRunning] = useState(false);
+  const [runResult, setRunResult] = useState<Omit<SubmissionResult, "submissionId"> | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [activeResultSource, setActiveResultSource] = useState<"run" | "submit" | null>(null);
   const [problems, setProblems] = useState<ProblemListItem[]>([]);
   const [selectedProblemSlug, setSelectedProblemSlug] = useState<string | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<ProblemDetail | null>(null);
@@ -117,11 +120,57 @@ export function PracticeWorkspace() {
     [problems, selectedProblemSlug]
   );
 
-  function runTests() {
-    setRunStatus("running");
-    window.setTimeout(() => {
-      setRunStatus(code.includes(".map(") ? "passed" : "failed");
-    }, 650);
+  async function runTests() {
+    setActiveResultSource("run");
+
+    if (!selectedProblemId) {
+      setRunResult(null);
+      setRunError("실행할 문제를 먼저 선택하세요.");
+      return;
+    }
+
+    setIsRunning(true);
+    setRunError(null);
+    setRunResult(null);
+
+    try {
+      const response = await fetch("/api/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          problemId: selectedProblemId,
+          code
+        })
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | (Omit<SubmissionResult, "submissionId"> & { message?: string; error?: string })
+        | null;
+
+      if (!response.ok) {
+        const message = data?.message ?? data?.error ?? "실행에 실패했습니다.";
+        throw new Error(message);
+      }
+
+      if (
+        !data ||
+        typeof data.status !== "string" ||
+        typeof data.score !== "number" ||
+        typeof data.runtimeMs !== "number" ||
+        !Array.isArray(data.results)
+      ) {
+        throw new Error("실행 응답 형식이 올바르지 않습니다.");
+      }
+
+      setRunResult(data);
+    } catch (error) {
+      setRunResult(null);
+      setRunError(error instanceof Error ? error.message : "네트워크 오류가 발생했습니다.");
+    } finally {
+      setIsRunning(false);
+    }
   }
 
   async function handleSubmit() {
@@ -133,6 +182,7 @@ export function PracticeWorkspace() {
 
     setIsSubmitting(true);
     setSubmissionError(null);
+    setActiveResultSource("submit");
 
     try {
       const response = await fetch("/api/submissions", {
@@ -211,18 +261,23 @@ export function PracticeWorkspace() {
               className="inline-flex h-8 items-center gap-2 rounded-md border border-app-border px-3 text-sm hover:bg-app-surface"
               onClick={() => {
                 setCode(starterCode);
-                setRunStatus("idle");
+                setRunResult(null);
+                setRunError(null);
+                setSubmissionResult(null);
+                setSubmissionError(null);
+                setActiveResultSource(null);
               }}
             >
               <RotateCcw className="h-4 w-4" />
               Reset
             </button>
             <button
-              className="inline-flex h-8 items-center gap-2 rounded-md border border-app-border px-3 text-sm hover:bg-app-surface"
+              className="inline-flex h-8 items-center gap-2 rounded-md border border-app-border px-3 text-sm hover:bg-app-surface disabled:cursor-not-allowed disabled:opacity-70"
               onClick={runTests}
+              disabled={isRunning}
             >
               <Play className="h-4 w-4" />
-              Run
+              {isRunning ? "Running..." : "Run"}
             </button>
             <button
               className="inline-flex h-8 items-center gap-2 rounded-md bg-app-accent px-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-70"
@@ -241,10 +296,13 @@ export function PracticeWorkspace() {
           <ProblemPanel problem={selectedProblem} />
         </div>
         <ResultPanel
-          runStatus={runStatus}
+          activeResultSource={activeResultSource}
+          isRunning={isRunning}
           isSubmitting={isSubmitting}
+          runResult={runResult}
+          runErrorMessage={runError}
           submissionResult={submissionResult}
-          errorMessage={submissionError}
+          submissionErrorMessage={submissionError}
         />
       </section>
     </main>

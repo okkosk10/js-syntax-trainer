@@ -19,9 +19,10 @@ const problems = [
 module.exports = doubleNumbers;`,
     explanation: "예: [1, 2, 3] -> [2, 4, 6]",
     testCases: [
-      { id: "mock-double-numbers-1", input: [1, 2, 3], expectedOutput: [2, 4, 6], order: 1 },
-      { id: "mock-double-numbers-2", input: [0, -2, 5], expectedOutput: [0, -4, 10], order: 2 },
-      { id: "mock-double-numbers-3", input: [], expectedOutput: [], order: 3 }
+      { id: "mock-double-numbers-1", input: [1, 2, 3], expectedOutput: [2, 4, 6], isHidden: false, order: 1 },
+      { id: "mock-double-numbers-2", input: [0, -2, 5], expectedOutput: [0, -4, 10], isHidden: false, order: 2 },
+      { id: "mock-double-numbers-3", input: [], expectedOutput: [], isHidden: false, order: 3 },
+      { id: "mock-double-numbers-4", input: [100, -100, 7], expectedOutput: [200, -200, 14], isHidden: true, order: 4 }
     ]
   },
   {
@@ -40,9 +41,10 @@ module.exports = doubleNumbers;`,
 module.exports = countVowels;`,
     explanation: "예: 'Hello' -> 2",
     testCases: [
-      { id: "mock-count-vowels-1", input: "Hello", expectedOutput: 2, order: 1 },
-      { id: "mock-count-vowels-2", input: "JavaScript", expectedOutput: 3, order: 2 },
-      { id: "mock-count-vowels-3", input: "BCD", expectedOutput: 0, order: 3 }
+      { id: "mock-count-vowels-1", input: "Hello", expectedOutput: 2, isHidden: false, order: 1 },
+      { id: "mock-count-vowels-2", input: "JavaScript", expectedOutput: 3, isHidden: false, order: 2 },
+      { id: "mock-count-vowels-3", input: "BCD", expectedOutput: 0, isHidden: false, order: 3 },
+      { id: "mock-count-vowels-4", input: "Queueing", expectedOutput: 5, isHidden: true, order: 4 }
     ]
   }
 ];
@@ -67,6 +69,7 @@ async function main() {
             id: testCase.id,
             input: testCase.input,
             expectedOutput: testCase.expectedOutput,
+            isHidden: testCase.isHidden,
             order: testCase.order
           }))
         }
@@ -87,6 +90,7 @@ async function main() {
             id: testCase.id,
             input: testCase.input,
             expectedOutput: testCase.expectedOutput,
+            isHidden: testCase.isHidden,
             order: testCase.order
           }))
         }
