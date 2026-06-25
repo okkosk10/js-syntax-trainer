@@ -279,6 +279,23 @@ export function PracticeWorkspace() {
     setCompletionState(initialCompletionState);
   }
 
+  function clearSelectedProblemFailureStreak() {
+    if (!selectedProblemId) {
+      return;
+    }
+
+    setFailureStreakByProblem((current) => {
+      if (!current[selectedProblemId]) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [selectedProblemId]: 0
+      };
+    });
+  }
+
   function moveToProblem(problemSlug: string) {
     if (problemSlug === selectedProblemSlug) {
       return;
@@ -485,9 +502,10 @@ export function PracticeWorkspace() {
             <button
               className="inline-flex h-8 items-center gap-2 rounded-md border border-app-border px-3 text-sm hover:bg-app-surface"
               onClick={() => {
-                setCode(starterCode);
+                setCode(selectedProblem?.starterCode ?? starterCode);
                 resetExecutionState();
                 closeCompletionModal();
+                clearSelectedProblemFailureStreak();
               }}
             >
               <RotateCcw className="h-4 w-4" />
@@ -543,7 +561,7 @@ export function PracticeWorkspace() {
                   className="inline-flex h-9 items-center rounded-md border border-app-border px-3 text-sm hover:bg-app-surface"
                   onClick={closeCompletionModal}
                 >
-                  닫기
+                  여기서 계속
                 </button>
                 {completionState.nextProblemSlug && (
                   <button
