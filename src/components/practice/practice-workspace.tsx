@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Play, RotateCcw, Send } from "lucide-react";
 import { MonacoCodeEditor } from "@/components/editor/monaco-code-editor";
-import type { ProblemDetail, ProblemListItem } from "@/features/problem/problem.repository";
+import type { ProblemDetail, ProblemListItem, ProblemProgress } from "@/features/problem/problem.repository";
 import type { SubmissionResult } from "@/features/submission/submission.types";
 import { ProblemPanel } from "./problem-panel";
 import { ProblemSidebar } from "./problem-sidebar";
@@ -20,6 +20,19 @@ const loadingMessages = [
   "서버를 깨우는 중입니다...",
   "편집기와 테스트 환경을 연결하고 있습니다..."
 ];
+
+function nextProblemProgress(previous: ProblemProgress | undefined, submission: SubmissionResult): ProblemProgress {
+  const attempts = (previous?.attempts ?? 0) + 1;
+  const passed = (previous?.passed ?? false) || submission.status === "passed";
+  const bestScore = Math.max(previous?.bestScore ?? 0, submission.score);
+
+  return {
+    attempts,
+    passed,
+    bestScore,
+    lastSubmittedAt: new Date().toISOString()
+  };
+}
 
 export function PracticeWorkspace() {
   const [code, setCode] = useState(starterCode);
@@ -216,7 +229,32 @@ export function PracticeWorkspace() {
         throw new Error("제출 응답 형식이 올바르지 않습니다.");
       }
 
-      setSubmissionResult(data as SubmissionResult);
+      const submission = data as SubmissionResult;
+      setSubmissionResult(submission);
+
+      setProblems((currentProblems) =>
+        currentProblems.map((problem) => {
+          if (problem.id !== selectedProblemId) {
+            return problem;
+          }
+
+          return {
+            ...problem,
+            progress: nextProblemProgress(problem.progress, submission)
+          };
+        })
+      );
+
+      setSelectedProblem((currentProblem) => {
+        if (!currentProblem || currentProblem.id !== selectedProblemId) {
+          return currentProblem;
+        }
+
+        return {
+          ...currentProblem,
+          progress: nextProblemProgress(currentProblem.progress, submission)
+        };
+      });
     } catch (error) {
       setSubmissionResult(null);
       setSubmissionError(error instanceof Error ? error.message : "네트워크 오류가 발생했습니다.");

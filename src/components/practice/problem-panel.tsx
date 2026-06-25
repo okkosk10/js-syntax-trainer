@@ -8,6 +8,29 @@ function formatDifficultyLabel(difficulty: string) {
   return difficulty.charAt(0) + difficulty.slice(1).toLowerCase();
 }
 
+function getProgressLine(problem: ProblemDetail) {
+  const progress = problem.progress;
+
+  if (!progress || progress.attempts === 0) {
+    return {
+      text: "New",
+      className: "text-app-muted"
+    };
+  }
+
+  if (progress.passed) {
+    return {
+      text: `Solved · Best ${progress.bestScore}%`,
+      className: "text-app-accent"
+    };
+  }
+
+  return {
+    text: `Attempted · Best ${progress.bestScore}%`,
+    className: "text-app-danger"
+  };
+}
+
 export function ProblemPanel({ problem }: ProblemPanelProps) {
   if (!problem) {
     return (
@@ -23,6 +46,8 @@ export function ProblemPanel({ problem }: ProblemPanelProps) {
     );
   }
 
+  const progressLine = getProgressLine(problem);
+
   return (
     <section className="h-full overflow-auto border-l border-app-border bg-app-panel">
       <div className="border-b border-app-border px-4 py-3">
@@ -30,6 +55,7 @@ export function ProblemPanel({ problem }: ProblemPanelProps) {
           {problem.category} / {formatDifficultyLabel(problem.difficulty)}
         </p>
         <h2 className="mt-2 text-lg font-semibold">{problem.title}</h2>
+        <p className={`mt-1 text-xs ${progressLine.className}`}>{progressLine.text}</p>
       </div>
       <div className="space-y-5 p-4 text-sm leading-6 text-app-muted">
         <p>{problem.description}</p>

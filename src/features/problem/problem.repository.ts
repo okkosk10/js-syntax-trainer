@@ -1,5 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
+const DEMO_USER_EMAIL = "demo@js-syntax-trainer.local";
+
+export type ProblemProgress = {
+  attempts: number;
+  passed: boolean;
+  bestScore: number;
+  lastSubmittedAt: string | null;
+};
+
 export type ProblemListItem = {
   id: string;
   slug: string;
@@ -7,6 +16,7 @@ export type ProblemListItem = {
   difficulty: string;
   category: string;
   tags: string[];
+  progress?: ProblemProgress;
 };
 
 export type ProblemDetail = ProblemListItem & {
@@ -36,14 +46,15 @@ function toProblemListItem(problem: {
   difficulty: string;
   category: string;
   tags: string[];
-}): ProblemListItem {
+}, progress?: ProblemProgress): ProblemListItem {
   return {
     id: problem.id,
     slug: problem.slug,
     title: problem.title,
     difficulty: problem.difficulty,
     category: problem.category,
-    tags: problem.tags
+    tags: problem.tags,
+    progress
   };
 }
 
@@ -57,37 +68,80 @@ function toProblemDetail(problem: {
   description: string;
   starterCode: string;
   explanation: string | null;
-}): ProblemDetail {
+}, progress?: ProblemProgress): ProblemDetail {
   return {
-    ...toProblemListItem(problem),
+    ...toProblemListItem(problem, progress),
     description: problem.description,
     starterCode: problem.starterCode,
     explanation: problem.explanation
   };
 }
 
-export const problemRepository = {
-  findPublished() {
-    return prisma.problem.findMany({
-      where: { isPublished: true },
-      orderBy: [{ difficulty: "asc" }, { createdAt: "desc" }]
-    }).then((problems) => problems.map(toProblemListItem));
-  },
+async function getDemoProgressMap() {
+  const user = await prisma.user.findUnique({
+    where: { email: DEMO_USER_EMAIL },
+    select: { id: true }
+  });
 
-  findPublishedWithInitialDetail(): Promise<ProblemListResponse> {
-    return prisma.problem
-      .findMany({
+  if (!user) {
+    return new Map<string, ProblemProgress>();
+  }
+
+  const stats = await prisma.learningStat.findMany({
+    where: { userId: user.id },
+    select: {
+      problemId: true,
+      attempts: true,
+      passed: true,
+      bestScore: true,
+      lastSubmittedAt: true
+    }
+  });
+
+  return new Map<string, ProblemProgress>(
+    stats.map((stat) => [
+      stat.problemId,
+      {
+        attempts: stat.attempts,
+        passed: stat.passed,
+        bestScore: stat.bestScore,
+        lastSubmittedAt: stat.lastSubmittedAt ? stat.lastSubmittedAt.toISOString() : null
+      }
+    ])
+  );
+}
+
+export const problemRepository = {
+  async findPublished() {
+    const [problems, progressMap] = await Promise.all([
+      prisma.problem.findMany({
         where: { isPublished: true },
         orderBy: [{ difficulty: "asc" }, { createdAt: "desc" }]
-      })
-      .then((problems) => ({
-        problems: problems.map(toProblemListItem),
-        initialProblem: problems[0] ? toProblemDetail(problems[0]) : null
-      }));
+      }),
+      getDemoProgressMap()
+    ]);
+
+    return problems.map((problem) => toProblemListItem(problem, progressMap.get(problem.id)));
   },
 
-  findBySlug(slug: string) {
-    return prisma.problem.findUnique({
+  async findPublishedWithInitialDetail(): Promise<ProblemListResponse> {
+    const [problems, progressMap] = await Promise.all([
+      prisma.problem.findMany({
+        where: { isPublished: true },
+        orderBy: [{ difficulty: "asc" }, { createdAt: "desc" }]
+      }),
+      getDemoProgressMap()
+    ]);
+
+    return {
+      problems: problems.map((problem) => toProblemListItem(problem, progressMap.get(problem.id))),
+      initialProblem: problems[0] ? toProblemDetail(problems[0], progressMap.get(problems[0].id)) : null
+    };
+  },
+
+  async findBySlug(slug: string) {
+    const [problem, progressMap] = await Promise.all([
+      prisma.problem.findUnique({
       where: { slug },
       include: {
         testCases: {
@@ -95,7 +149,11 @@ export const problemRepository = {
           orderBy: { order: "asc" }
         }
       }
-    }).then((problem) => (problem ? toProblemDetail(problem) : null));
+      }),
+      getDemoProgressMap()
+    ]);
+
+    return problem ? toProblemDetail(problem, progressMap.get(problem.id)) : null;
   },
 
   findPublicExecutionById(id: string): Promise<ProblemExecution | null> {

@@ -1,4 +1,4 @@
-import type { ProblemDetail, ProblemListItem } from "@/features/problem/problem.repository";
+import type { ProblemDetail, ProblemListItem, ProblemProgress } from "@/features/problem/problem.repository";
 
 type MockProblemTestCase = {
   id: string;
@@ -77,7 +77,22 @@ function toProblemDetail(problem: MockProblemInternal): ProblemDetail {
     tags: problem.tags,
     description: problem.description,
     starterCode: problem.starterCode,
-    explanation: problem.explanation
+    explanation: problem.explanation,
+    progress: {
+      attempts: 0,
+      passed: false,
+      bestScore: 0,
+      lastSubmittedAt: null
+    }
+  };
+}
+
+function defaultProgress(): ProblemProgress {
+  return {
+    attempts: 0,
+    passed: false,
+    bestScore: 0,
+    lastSubmittedAt: null
   };
 }
 
@@ -88,7 +103,8 @@ export function getMockProblemList(): ProblemListItem[] {
     title: problem.title,
     difficulty: problem.difficulty,
     category: problem.category,
-    tags: problem.tags
+    tags: problem.tags,
+    progress: defaultProgress()
   }));
 }
 
