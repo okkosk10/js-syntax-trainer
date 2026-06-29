@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createInlineSubmission } from "@/features/submission/inline-submission.service";
+import { ensureDemoUser } from "@/features/user/demo-user";
 import { env } from "@/lib/env";
-import { prisma } from "@/lib/prisma";
 
 const submissionSchema = z.object({
   problemId: z.string().min(1),
@@ -13,14 +13,7 @@ const submissionSchema = z.object({
 export async function POST(request: Request) {
   try {
     const body = submissionSchema.parse(await request.json());
-    const user = await prisma.user.upsert({
-      where: { email: "demo@js-syntax-trainer.local" },
-      update: {},
-      create: {
-        email: "demo@js-syntax-trainer.local",
-        name: "데모 사용자"
-      }
-    });
+    const user = await ensureDemoUser();
 
     const userId = body.userId ?? user.id;
 

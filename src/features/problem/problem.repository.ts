@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getHintsByProblemSlug } from "@/features/problem/problem-hints";
-
-const DEMO_USER_EMAIL = "demo@js-syntax-trainer.local";
+import { DEMO_USER_EMAIL } from "@/features/user/demo-user";
 
 export type ProblemProgress = {
   attempts: number;
