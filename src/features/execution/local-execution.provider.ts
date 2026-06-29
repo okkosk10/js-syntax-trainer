@@ -21,7 +21,39 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function runSolutionInContext(
+function isPromiseLike(value: unknown): value is Promise<unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "then" in value &&
+    typeof (value as { then?: unknown }).then === "function"
+  );
+}
+
+async function resolveWithTimeout(value: unknown, timeoutMs: number) {
+  if (!isPromiseLike(value)) {
+    return value;
+  }
+
+  let timeoutId: NodeJS.Timeout | undefined;
+
+  try {
+    return await Promise.race([
+      value,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error("Execution timed out while awaiting Promise result."));
+        }, timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+async function runSolutionInContext(
   sandbox: ExecutionSandbox,
   solution: (...args: unknown[]) => unknown,
   testInput: unknown[],
@@ -33,7 +65,7 @@ function runSolutionInContext(
 
   try {
     vm.runInContext("__actualOutput = __solution(...__testInput)", sandbox, { timeout: timeoutMs });
-    return sandbox.__actualOutput;
+    return await resolveWithTimeout(sandbox.__actualOutput, timeoutMs);
   } finally {
     delete sandbox.__solution;
     delete sandbox.__testInput;
@@ -62,11 +94,13 @@ export class LocalExecutionProvider implements CodeExecutionProvider {
 
       const executableSolution = solution as (...args: unknown[]) => unknown;
 
-      const results = input.tests.map((test) => {
+      const results: CodeExecutionResult["results"] = [];
+
+      for (const test of input.tests) {
         const testStartedAt = Date.now();
 
         try {
-          const actualOutput = runSolutionInContext(
+          const actualOutput = await runSolutionInContext(
             sandbox,
             executableSolution,
             normalizeInput(test.input),
@@ -74,25 +108,25 @@ export class LocalExecutionProvider implements CodeExecutionProvider {
           );
           const passed = isEqual(actualOutput, test.expectedOutput);
 
-          return {
+          results.push({
             testCaseId: test.id,
             status: passed ? ("passed" as const) : ("failed" as const),
             input: test.input,
             actualOutput,
             expectedOutput: test.expectedOutput,
             runtimeMs: Date.now() - testStartedAt
-          };
+          });
         } catch (error) {
-          return {
+          results.push({
             testCaseId: test.id,
             status: "error" as const,
             input: test.input,
             expectedOutput: test.expectedOutput,
             errorMessage: getErrorMessage(error),
             runtimeMs: Date.now() - testStartedAt
-          };
+          });
         }
-      });
+      }
 
       const passedCount = results.filter((result) => result.status === "passed").length;
       const score = input.tests.length === 0 ? 0 : Math.round((passedCount / input.tests.length) * 100);
