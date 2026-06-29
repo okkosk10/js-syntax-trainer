@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, CircleDot, Filter } from "lucide-react";
+import { CheckCircle2, Circle, CircleDot } from "lucide-react";
 import type { ProblemListItem } from "@/features/problem/problem.repository";
 
 type ProblemSidebarProps = {
@@ -9,6 +9,41 @@ type ProblemSidebarProps = {
 
 function formatDifficultyLabel(difficulty: string) {
   return difficulty.charAt(0) + difficulty.slice(1).toLowerCase();
+}
+
+function compareDifficulty(left: string, right: string) {
+  const order = {
+    EASY: 0,
+    MEDIUM: 1,
+    HARD: 2
+  } as const;
+
+  return (order[left as keyof typeof order] ?? 99) - (order[right as keyof typeof order] ?? 99);
+}
+
+function groupProblemsByCategory(problems: ProblemListItem[]) {
+  const map = new Map<string, ProblemListItem[]>();
+
+  for (const problem of problems) {
+    const current = map.get(problem.category) ?? [];
+    current.push(problem);
+    map.set(problem.category, current);
+  }
+
+  return [...map.entries()]
+    .map(([category, items]) => ({
+      category,
+      items: [...items].sort((left, right) => {
+        const difficultyCompare = compareDifficulty(left.difficulty, right.difficulty);
+
+        if (difficultyCompare !== 0) {
+          return difficultyCompare;
+        }
+
+        return left.title.localeCompare(right.title, "ko");
+      })
+    }))
+    .sort((left, right) => left.category.localeCompare(right.category, "ko"));
 }
 
 function getProblemProgress(problem: ProblemListItem) {
@@ -41,46 +76,56 @@ function getProblemProgress(problem: ProblemListItem) {
 }
 
 export function ProblemSidebar({ problems, selectedProblemId, onSelectProblem }: ProblemSidebarProps) {
+  const groupedProblems = groupProblemsByCategory(problems);
+
   return (
-    <aside className="hidden w-72 shrink-0 border-r border-app-border bg-app-panel md:block">
+    <aside className="hidden h-full w-80 shrink-0 border-r border-app-border bg-app-panel md:flex md:flex-col">
       <div className="flex h-12 items-center justify-between border-b border-app-border px-4">
         <span className="text-sm font-semibold">문제은행</span>
-        <button className="rounded p-1 text-app-muted hover:bg-app-surface" title="필터">
-          <Filter className="h-4 w-4" />
-        </button>
+        <span className="rounded-full border border-app-border bg-app-surface px-2 py-0.5 text-xs text-app-muted">
+          {problems.length}문제
+        </span>
       </div>
-      <div className="p-3">
-        {problems.map((problem) => {
-          const progress = getProblemProgress(problem);
-          const ProgressIcon = progress.icon;
+      <div className="flex-1 overflow-y-auto p-3">
+        {groupedProblems.map((group) => (
+          <section key={group.category} className="mb-4 last:mb-0">
+            <div className="sticky top-0 z-10 -mx-1 mb-2 flex items-center justify-between bg-app-panel/95 px-1 py-2 backdrop-blur-sm">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-app-muted">{group.category}</h3>
+              <span className="text-xs text-app-muted">{group.items.length}</span>
+            </div>
+            {group.items.map((problem) => {
+              const progress = getProblemProgress(problem);
+              const ProgressIcon = progress.icon;
 
-          return (
-            <button
-              key={problem.id}
-              className={`mb-2 flex w-full items-start gap-3 rounded-md px-3 py-3 text-left hover:bg-app-surface ${
-                selectedProblemId === problem.id ? "bg-app-surface" : ""
-              }`}
-              onClick={() => onSelectProblem(problem.slug)}
-            >
-              {selectedProblemId === problem.id ? (
-                <CheckCircle2 className="mt-0.5 h-4 w-4 text-app-accent" />
-              ) : (
-                <Circle className="mt-0.5 h-4 w-4 text-app-muted" />
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm">{problem.title}</span>
-                <span className="mt-1 flex items-center justify-between gap-2 text-xs text-app-muted">
-                  <span>{formatDifficultyLabel(problem.difficulty)}</span>
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${progress.className}`}>
-                    <ProgressIcon className="h-3 w-3" />
-                    <span>{progress.label}</span>
-                    {progress.scoreText && <span>{progress.scoreText}</span>}
+              return (
+                <button
+                  key={problem.id}
+                  className={`mb-2 flex w-full items-start gap-3 rounded-md px-3 py-3 text-left hover:bg-app-surface ${
+                    selectedProblemId === problem.id ? "bg-app-surface" : ""
+                  }`}
+                  onClick={() => onSelectProblem(problem.slug)}
+                >
+                  {selectedProblemId === problem.id ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-app-accent" />
+                  ) : (
+                    <Circle className="mt-0.5 h-4 w-4 text-app-muted" />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm">{problem.title}</span>
+                    <span className="mt-1 flex items-center justify-between gap-2 text-xs text-app-muted">
+                      <span>{formatDifficultyLabel(problem.difficulty)}</span>
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${progress.className}`}>
+                        <ProgressIcon className="h-3 w-3" />
+                        <span>{progress.label}</span>
+                        {progress.scoreText && <span>{progress.scoreText}</span>}
+                      </span>
+                    </span>
                   </span>
-                </span>
-              </span>
-            </button>
-          );
-        })}
+                </button>
+              );
+            })}
+          </section>
+        ))}
       </div>
     </aside>
   );
