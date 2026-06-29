@@ -35,7 +35,7 @@ function getProgressLine(problem: ProblemDetail) {
 export function ProblemPanel({ problem, visibleHints = [] }: ProblemPanelProps) {
   if (!problem) {
     return (
-      <section className="h-full overflow-auto border-l border-app-border bg-app-panel">
+      <section className="h-full overflow-y-auto overflow-x-hidden border-l border-app-border bg-app-panel">
         <div className="border-b border-app-border px-4 py-3">
           <p className="text-xs font-semibold uppercase text-app-accent">문제</p>
           <h2 className="mt-2 text-lg font-semibold">선택된 문제가 없습니다</h2>
@@ -50,7 +50,7 @@ export function ProblemPanel({ problem, visibleHints = [] }: ProblemPanelProps) 
   const progressLine = getProgressLine(problem);
 
   return (
-    <section className="h-full overflow-auto border-l border-app-border bg-app-panel">
+    <section className="h-full overflow-y-auto overflow-x-hidden border-l border-app-border bg-app-panel">
       <div className="border-b border-app-border px-4 py-3">
         <p className="text-xs font-semibold uppercase text-app-accent">
           {problem.category} / {formatDifficultyLabel(problem.difficulty)}
@@ -62,11 +62,13 @@ export function ProblemPanel({ problem, visibleHints = [] }: ProblemPanelProps) 
         <p>{problem.description}</p>
         <div>
           <h3 className="mb-2 text-sm font-semibold text-app-text">입력</h3>
-          <pre className="rounded-md bg-app-bg p-3">{problem.tags.join(", ")}</pre>
+          <p className="rounded-md bg-app-bg p-3 whitespace-pre-wrap break-words">{problem.tags.join(", ")}</p>
         </div>
         <div>
           <h3 className="mb-2 text-sm font-semibold text-app-text">출력</h3>
-          <pre className="rounded-md bg-app-bg p-3">{problem.explanation ?? "문제 설명을 참고하세요."}</pre>
+          <p className="rounded-md bg-app-bg p-3 whitespace-pre-wrap break-words">
+            {problem.explanation ?? "문제 설명을 참고하세요."}
+          </p>
         </div>
         <div>
           <h3 className="mb-2 text-sm font-semibold text-app-text">평가 기준</h3>

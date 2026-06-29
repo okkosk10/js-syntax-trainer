@@ -21,28 +21,37 @@ function compareDifficulty(left: string, right: string) {
   return (order[left as keyof typeof order] ?? 99) - (order[right as keyof typeof order] ?? 99);
 }
 
-function groupProblemsByCategory(problems: ProblemListItem[]) {
-  const map = new Map<string, ProblemListItem[]>();
+function extractSequence(problem: ProblemListItem) {
+  const match = problem.slug.match(/-(\d+)$/);
+  return match ? Number.parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+}
 
-  for (const problem of problems) {
-    const current = map.get(problem.category) ?? [];
-    current.push(problem);
-    map.set(problem.category, current);
+function compareProblemOrder(left: ProblemListItem, right: ProblemListItem) {
+  const difficultyCompare = compareDifficulty(left.difficulty, right.difficulty);
+
+  if (difficultyCompare !== 0) {
+    return difficultyCompare;
   }
 
-  return [...map.entries()]
-    .map(([category, items]) => ({
-      category,
-      items: [...items].sort((left, right) => {
-        const difficultyCompare = compareDifficulty(left.difficulty, right.difficulty);
+  return extractSequence(left) - extractSequence(right);
+}
 
-        if (difficultyCompare !== 0) {
-          return difficultyCompare;
-        }
+function groupProblemsByCategory(problems: ProblemListItem[]) {
+  const categoryMap = new Map<string, ProblemListItem[]>();
 
-        return left.title.localeCompare(right.title, "ko");
-      })
-    }))
+  for (const problem of problems) {
+    const current = categoryMap.get(problem.category) ?? [];
+    current.push(problem);
+    categoryMap.set(problem.category, current);
+  }
+
+  return [...categoryMap.entries()]
+    .map(([category, items]) => {
+      return {
+        category,
+        items: [...items].sort(compareProblemOrder)
+      };
+    })
     .sort((left, right) => left.category.localeCompare(right.category, "ko"));
 }
 
@@ -96,16 +105,17 @@ export function ProblemSidebar({ problems, selectedProblemId, onSelectProblem }:
             {group.items.map((problem) => {
               const progress = getProblemProgress(problem);
               const ProgressIcon = progress.icon;
+              const isSelected = problem.id === selectedProblemId;
 
               return (
                 <button
                   key={problem.id}
                   className={`mb-2 flex w-full items-start gap-3 rounded-md px-3 py-3 text-left hover:bg-app-surface ${
-                    selectedProblemId === problem.id ? "bg-app-surface" : ""
+                    isSelected ? "bg-app-surface" : ""
                   }`}
                   onClick={() => onSelectProblem(problem.slug)}
                 >
-                  {selectedProblemId === problem.id ? (
+                  {isSelected ? (
                     <CheckCircle2 className="mt-0.5 h-4 w-4 text-app-accent" />
                   ) : (
                     <Circle className="mt-0.5 h-4 w-4 text-app-muted" />

@@ -1,27 +1,7 @@
 import type { ProblemBankProblem } from "./types";
-import { variablesConditionsProblems } from "./variables-conditions-problems";
-import { loopProblems } from "./loop-problems";
-import { arrayBasicProblems } from "./array-basic-problems";
-import { stringProblems } from "./string-problems";
-import { objectProblems } from "./object-problems";
-import { functionScopeClosureProblems } from "./function-scope-problems";
-import { arrayHigherOrderProblems } from "./array-hof-problems";
-import { dateNumberRegexProblems } from "./date-number-regex-problems";
-import { asyncProblems } from "./async-problems";
-import { miniPracticeProblems } from "./mini-problems";
+import { staticProblems } from "./static-problems";
 
-export const problemBank: ProblemBankProblem[] = [
-  ...variablesConditionsProblems,
-  ...loopProblems,
-  ...arrayBasicProblems,
-  ...stringProblems,
-  ...objectProblems,
-  ...functionScopeClosureProblems,
-  ...arrayHigherOrderProblems,
-  ...dateNumberRegexProblems,
-  ...asyncProblems,
-  ...miniPracticeProblems
-];
+export const problemBank: ProblemBankProblem[] = staticProblems;
 
 const slugSet = new Set<string>();
 const idSet = new Set<string>();
