@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getMockProblemDetailBySlug, getMockProblemList } from "@/features/problem/mock-problems";
 import { problemRepository } from "@/features/problem/problem.repository";
 import { queryProblemDatabase } from "@/features/problem/problem-source";
+import { getCurrentUser } from "@/features/user/current-user";
 
 function createMockResponse(slug: string | null) {
   if (slug) {
@@ -26,9 +27,10 @@ function createMockResponse(slug: string | null) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug");
+  const { user } = await getCurrentUser({ ensureCookie: true });
 
   if (slug) {
-    const dbResult = await queryProblemDatabase(() => problemRepository.findBySlug(slug));
+    const dbResult = await queryProblemDatabase(() => problemRepository.findBySlug(slug, user.id));
 
     if (dbResult.source === "fallback") {
       return createMockResponse(slug);
@@ -41,7 +43,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ problem: dbResult.value });
   }
 
-  const dbResult = await queryProblemDatabase(() => problemRepository.findPublished());
+  const dbResult = await queryProblemDatabase(() => problemRepository.findPublished(user.id));
 
   if (dbResult.source === "fallback") {
     return createMockResponse(null);

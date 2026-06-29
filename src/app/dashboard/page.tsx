@@ -1,4 +1,5 @@
 import { getDashboardStats } from "@/features/stats/stats.service";
+import { getCurrentUser } from "@/features/user/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,8 @@ function formatDateTime(value: string | null) {
 }
 
 export default async function DashboardPage() {
-  const stats = await getDashboardStats();
+  const { user } = await getCurrentUser();
+  const stats = await getDashboardStats(user.id);
   const metricCards = [
     {
       label: "전체 문제 수",

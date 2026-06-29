@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { problemBank } from "@/features/problem/problem-bank";
-import { DEMO_USER_EMAIL } from "@/features/user/demo-user";
 
 type Difficulty = "EASY" | "MEDIUM" | "HARD";
 
@@ -95,22 +94,16 @@ function buildFallbackStats(): DashboardStats {
   };
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(userId: string | null): Promise<DashboardStats> {
   try {
-    const [user, publishedProblems] = await Promise.all([
-      prisma.user.findUnique({
-        where: { email: DEMO_USER_EMAIL },
-        select: { id: true }
-      }),
-      prisma.problem.findMany({
-        where: { isPublished: true },
-        select: {
-          id: true,
-          difficulty: true,
-          category: true
-        }
-      })
-    ]);
+    const publishedProblems = await prisma.problem.findMany({
+      where: { isPublished: true },
+      select: {
+        id: true,
+        difficulty: true,
+        category: true
+      }
+    });
 
     const totalProblems = publishedProblems.length > 0 ? publishedProblems.length : problemBank.length;
 
@@ -125,7 +118,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       categoryTotals.set(problem.category, (categoryTotals.get(problem.category) ?? 0) + 1);
     }
 
-    if (!user) {
+    if (!userId) {
       return {
         ...buildFallbackStats(),
         totalProblems,
@@ -151,7 +144,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
     const [stats, submissionsSummary] = await Promise.all([
       prisma.learningStat.findMany({
-        where: { userId: user.id },
+        where: { userId },
         select: {
           bestScore: true,
           passed: true,
@@ -164,7 +157,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         }
       }),
       prisma.submission.aggregate({
-        where: { userId: user.id },
+        where: { userId },
         _count: { _all: true },
         _max: { createdAt: true }
       })

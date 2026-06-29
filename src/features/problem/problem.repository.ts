@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { getHintsByProblemSlug } from "@/features/problem/problem-hints";
-import { DEMO_USER_EMAIL } from "@/features/user/demo-user";
 
 export type ProblemProgress = {
   attempts: number;
@@ -79,18 +78,13 @@ function toProblemDetail(problem: {
   };
 }
 
-async function getDemoProgressMap() {
-  const user = await prisma.user.findUnique({
-    where: { email: DEMO_USER_EMAIL },
-    select: { id: true }
-  });
-
-  if (!user) {
+async function getProgressMapByUserId(userId?: string) {
+  if (!userId) {
     return new Map<string, ProblemProgress>();
   }
 
   const stats = await prisma.learningStat.findMany({
-    where: { userId: user.id },
+    where: { userId },
     select: {
       problemId: true,
       attempts: true,
@@ -114,25 +108,25 @@ async function getDemoProgressMap() {
 }
 
 export const problemRepository = {
-  async findPublished() {
+  async findPublished(userId?: string) {
     const [problems, progressMap] = await Promise.all([
       prisma.problem.findMany({
         where: { isPublished: true },
         orderBy: [{ difficulty: "asc" }, { createdAt: "desc" }, { slug: "asc" }]
       }),
-      getDemoProgressMap()
+      getProgressMapByUserId(userId)
     ]);
 
     return problems.map((problem) => toProblemListItem(problem, progressMap.get(problem.id)));
   },
 
-  async findPublishedWithInitialDetail(): Promise<ProblemListResponse> {
+  async findPublishedWithInitialDetail(userId?: string): Promise<ProblemListResponse> {
     const [problems, progressMap] = await Promise.all([
       prisma.problem.findMany({
         where: { isPublished: true },
         orderBy: [{ difficulty: "asc" }, { createdAt: "desc" }, { slug: "asc" }]
       }),
-      getDemoProgressMap()
+      getProgressMapByUserId(userId)
     ]);
 
     return {
@@ -141,7 +135,7 @@ export const problemRepository = {
     };
   },
 
-  async findBySlug(slug: string) {
+  async findBySlug(slug: string, userId?: string) {
     const [problem, progressMap] = await Promise.all([
       prisma.problem.findUnique({
       where: { slug },
@@ -152,7 +146,7 @@ export const problemRepository = {
         }
       }
       }),
-      getDemoProgressMap()
+      getProgressMapByUserId(userId)
     ]);
 
     return problem ? toProblemDetail(problem, progressMap.get(problem.id)) : null;

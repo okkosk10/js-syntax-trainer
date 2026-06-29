@@ -1,26 +1,23 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createInlineSubmission } from "@/features/submission/inline-submission.service";
-import { ensureDemoUser } from "@/features/user/demo-user";
+import { getCurrentUser } from "@/features/user/current-user";
 import { env } from "@/lib/env";
 
 const submissionSchema = z.object({
   problemId: z.string().min(1),
-  code: z.string().min(1),
-  userId: z.string().min(1).optional()
+  code: z.string().min(1)
 });
 
 export async function POST(request: Request) {
   try {
     const body = submissionSchema.parse(await request.json());
-    const user = await ensureDemoUser();
-
-    const userId = body.userId ?? user.id;
+    const { user } = await getCurrentUser({ ensureCookie: true });
 
     if (env.SUBMISSION_MODE === "queued") {
       const { createSubmission } = await import("@/features/submission/queued-submission.service");
       const submission = await createSubmission({
-        userId,
+        userId: user.id,
         problemId: body.problemId,
         code: body.code
       });
@@ -33,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     const submission = await createInlineSubmission({
-      userId,
+      userId: user.id,
       problemId: body.problemId,
       code: body.code
     });
