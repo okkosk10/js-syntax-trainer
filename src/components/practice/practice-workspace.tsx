@@ -625,16 +625,49 @@ export function PracticeWorkspace() {
           </div>
         )}
         <header className="shrink-0 border-b border-app-border bg-app-panel px-3 py-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-xs font-semibold uppercase tracking-wide text-app-accent">{selectedLessonTitle}</p>
               <p className="truncate text-sm font-semibold text-app-text">
-                {selectedProblem?.title ?? "문제를 선택해 주세요"}
+                {selectedProblem
+                  ? `${selectedLessonTitle} · ${selectedProblem.title} · ${selectedProblem.difficulty} · ${selectedStatus}`
+                  : "문제를 선택해 주세요"}
               </p>
-              <p className="text-xs text-app-muted">
-                {selectedProblemId ? selectedProblemIndex + 1 : 0} / {problems.length || 0}문제 · {selectedStatus}
-                {selectedProblem ? ` · ${selectedProblem.difficulty}` : ""}
+              <p className="truncate text-xs text-app-muted">
+                {selectedProblem
+                  ? `${selectedProblem.category} · ${selectedProblemIndex + 1} / ${problems.length || 0}문제`
+                  : `0 / ${problems.length || 0}문제`}
               </p>
+            </div>
+            <div className="hidden items-center gap-2 md:flex">
+              <span className="rounded bg-app-surface px-2 py-1 text-xs text-app-muted">solution.js</span>
+              <button
+                className="inline-flex h-8 items-center gap-2 rounded-md border border-app-border px-3 text-sm hover:bg-app-surface"
+                onClick={() => {
+                  setCode(selectedProblem?.starterCode ?? starterCode);
+                  resetExecutionState();
+                  closeCompletionModal();
+                  clearSelectedProblemFailureStreak();
+                }}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reset
+              </button>
+              <button
+                className="inline-flex h-8 items-center gap-2 rounded-md border border-app-accent/45 px-3 text-sm text-app-accent hover:bg-app-accent/10 disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={runTests}
+                disabled={isRunning}
+              >
+                <Play className="h-4 w-4" />
+                {isRunning ? "Running..." : "Run"}
+              </button>
+              <button
+                className="inline-flex h-8 items-center gap-2 rounded-md bg-app-accent px-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+              >
+                <Send className="h-4 w-4" />
+                {isSubmitting ? "Submitting..." : "Submit"}
+              </button>
             </div>
             <div className="flex items-center gap-1 md:hidden">
               <button
@@ -657,7 +690,7 @@ export function PracticeWorkspace() {
               </button>
             </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-app-border pt-2">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-app-border pt-2 md:hidden">
             <div className="flex items-center gap-2 text-xs text-app-muted">
               <span className="rounded bg-app-surface px-2 py-1">solution.js</span>
               <span>JavaScript</span>

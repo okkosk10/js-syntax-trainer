@@ -95,16 +95,30 @@ export function ProblemPanel({ problem, visibleHints = [] }: ProblemPanelProps) 
       <div className="space-y-4 p-4 text-sm leading-6 text-app-muted">
         {activeTab === "problem" && (
           <>
-            <p>{problem.description}</p>
+            <p className="line-clamp-5">{problem.description}</p>
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-app-text">문제 요구사항</h3>
+              <h3 className="mb-2 text-sm font-semibold text-app-text">해야 할 일</h3>
               <p className="rounded-md bg-app-bg p-3 whitespace-pre-wrap break-words">{problem.tags.join(", ")}</p>
             </div>
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-app-text">반환/출력 힌트</h3>
+              <h3 className="mb-2 text-sm font-semibold text-app-text">반환 형식 힌트</h3>
               <p className="rounded-md bg-app-bg p-3 whitespace-pre-wrap break-words">
                 {problem.explanation ?? "문제 설명을 참고하세요."}
               </p>
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-semibold text-app-text">이 문제에서 쓰는 개념</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {lessonGuide.concepts.slice(0, 4).map((concept) => (
+                  <span
+                    key={concept}
+                    className="inline-flex max-w-full items-center rounded-full border border-app-border bg-app-bg px-2 py-0.5 text-[11px] leading-4 text-app-muted"
+                    title={concept}
+                  >
+                    <span className="truncate">{concept}</span>
+                  </span>
+                ))}
+              </div>
             </div>
             <div>
               <h3 className="mb-2 text-sm font-semibold text-app-text">평가 기준</h3>

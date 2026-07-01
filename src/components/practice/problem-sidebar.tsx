@@ -61,7 +61,7 @@ function getProblemProgress(problem: ProblemListItem) {
 
   if (!progress || progress.attempts === 0) {
     return {
-      label: "New",
+      label: "N",
       scoreText: null,
       className: "border-app-border/80 bg-app-bg text-app-muted",
       icon: Circle
@@ -70,7 +70,7 @@ function getProblemProgress(problem: ProblemListItem) {
 
   if (progress.passed) {
     return {
-      label: "Solved",
+      label: "S",
       scoreText: `${progress.bestScore}%`,
       className: "border-app-accent/40 bg-app-accent/10 text-app-accent",
       icon: CheckCircle2
@@ -78,7 +78,7 @@ function getProblemProgress(problem: ProblemListItem) {
   }
 
   return {
-    label: "Attempted",
+    label: "A",
     scoreText: `${progress.bestScore}%`,
     className: "border-app-danger/40 bg-app-danger/10 text-app-danger",
     icon: CircleDot
@@ -117,7 +117,7 @@ export function ProblemSidebar({ problems, selectedProblemId, onSelectProblem, m
                 <button
                   key={problem.id}
                   className={`mb-1.5 flex w-full items-start gap-2 rounded-md px-2 py-2 text-left hover:bg-app-surface ${
-                    isSelected ? "bg-app-surface ring-1 ring-app-accent/40" : ""
+                    isSelected ? "bg-app-surface ring-1 ring-app-accent/30" : ""
                   }`}
                   onClick={() => onSelectProblem(problem.slug)}
                 >
