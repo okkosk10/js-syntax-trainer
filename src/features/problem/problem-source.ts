@@ -4,7 +4,7 @@ let dbState: "unknown" | "up" | "down" = "unknown";
 let nextProbeAt = 0;
 let probePromise: Promise<void> | null = null;
 
-const ACTIVE_DB_TIMEOUT_MS = 400;
+const ACTIVE_DB_TIMEOUT_MS = 4_000;
 const PROBE_DB_TIMEOUT_MS = 4_000;
 const PROBE_RETRY_COOLDOWN_MS = 20_000;
 

@@ -28,6 +28,7 @@ export type ProblemDetail = ProblemListItem & {
 export type ProblemListResponse = {
   problems: ProblemListItem[];
   initialProblem: ProblemDetail | null;
+  problemDetails?: ProblemDetail[];
 };
 
 export type ProblemExecution = {
@@ -107,6 +108,38 @@ async function getProgressMapByUserId(userId?: string) {
   );
 }
 
+async function getProblemProgressByUserId(userId: string | undefined, problemId: string) {
+  if (!userId) {
+    return undefined;
+  }
+
+  const stat = await prisma.learningStat.findUnique({
+    where: {
+      userId_problemId: {
+        userId,
+        problemId
+      }
+    },
+    select: {
+      attempts: true,
+      passed: true,
+      bestScore: true,
+      lastSubmittedAt: true
+    }
+  });
+
+  if (!stat) {
+    return undefined;
+  }
+
+  return {
+    attempts: stat.attempts,
+    passed: stat.passed,
+    bestScore: stat.bestScore,
+    lastSubmittedAt: stat.lastSubmittedAt ? stat.lastSubmittedAt.toISOString() : null
+  };
+}
+
 export const problemRepository = {
   async findPublished(userId?: string) {
     const [problems, progressMap] = await Promise.all([
@@ -135,21 +168,58 @@ export const problemRepository = {
     };
   },
 
-  async findBySlug(slug: string, userId?: string) {
-    const [problem, progressMap] = await Promise.all([
-      prisma.problem.findUnique({
-      where: { slug },
-      include: {
-        testCases: {
-          where: { isHidden: false },
-          orderBy: { order: "asc" }
-        }
-      }
+  async findPublishedWithDetails(userId?: string): Promise<ProblemListResponse> {
+    const [problems, progressMap] = await Promise.all([
+      prisma.problem.findMany({
+        where: { isPublished: true },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          difficulty: true,
+          category: true,
+          tags: true,
+          description: true,
+          starterCode: true,
+          explanation: true
+        },
+        orderBy: [{ difficulty: "asc" }, { createdAt: "desc" }, { slug: "asc" }]
       }),
       getProgressMapByUserId(userId)
     ]);
 
-    return problem ? toProblemDetail(problem, progressMap.get(problem.id)) : null;
+    const problemDetails = problems.map((problem) => toProblemDetail(problem, progressMap.get(problem.id)));
+
+    return {
+      problems: problemDetails.map((problem) => toProblemListItem(problem, problem.progress)),
+      initialProblem: problemDetails[0] ?? null,
+      problemDetails
+    };
+  },
+
+  async findBySlug(slug: string, userId?: string) {
+    const problem = await prisma.problem.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        difficulty: true,
+        category: true,
+        tags: true,
+        description: true,
+        starterCode: true,
+        explanation: true
+      }
+    });
+
+    if (!problem) {
+      return null;
+    }
+
+    const progress = await getProblemProgressByUserId(userId, problem.id);
+
+    return toProblemDetail(problem, progress);
   },
 
   findPublicExecutionById(id: string): Promise<ProblemExecution | null> {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMockProblemDetailBySlug, getMockProblemList } from "@/features/problem/mock-problems";
+import { getMockProblemDetailBySlug, getMockProblemDetails, getMockProblemList } from "@/features/problem/mock-problems";
 import { problemRepository } from "@/features/problem/problem.repository";
 import { queryProblemDatabase } from "@/features/problem/problem-source";
 import { getCurrentUser } from "@/features/user/current-user";
@@ -20,6 +20,7 @@ function createMockResponse(slug: string | null) {
 
   return NextResponse.json({
     problems: getMockProblemList(),
+    problemDetails: getMockProblemDetails(),
     source: "mock"
   });
 }
@@ -43,11 +44,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ problem: dbResult.value });
   }
 
-  const dbResult = await queryProblemDatabase(() => problemRepository.findPublished(user.id));
+  const dbResult = await queryProblemDatabase(() => problemRepository.findPublishedWithDetails(user.id));
 
   if (dbResult.source === "fallback") {
     return createMockResponse(null);
   }
 
-  return NextResponse.json({ problems: dbResult.value });
+  return NextResponse.json(dbResult.value);
 }

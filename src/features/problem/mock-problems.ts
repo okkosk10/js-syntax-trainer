@@ -85,6 +85,10 @@ export function getMockProblemList(): ProblemListItem[] {
   }));
 }
 
+export function getMockProblemDetails(): ProblemDetail[] {
+  return mockProblems.map((problem) => toProblemDetail(problem));
+}
+
 export function getMockProblemDetailBySlug(slug: string): ProblemDetail | null {
   const problem = mockProblems.find((item) => item.slug === slug);
 

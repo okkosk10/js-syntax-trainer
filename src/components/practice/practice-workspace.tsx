@@ -206,6 +206,7 @@ export function PracticeWorkspace() {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [activeResultSource, setActiveResultSource] = useState<"run" | "submit" | null>(null);
   const [problems, setProblems] = useState<ProblemListItem[]>([]);
+  const [problemDetailsBySlug, setProblemDetailsBySlug] = useState<Record<string, ProblemDetail>>({});
   const [selectedProblemSlug, setSelectedProblemSlug] = useState<string | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<ProblemDetail | null>(null);
   const [isLoadingProblems, setIsLoadingProblems] = useState(true);
@@ -237,14 +238,30 @@ export function PracticeWorkspace() {
 
     async function loadProblems() {
       const response = await fetch("/api/problems");
-      const data = (await response.json()) as { problems: ProblemListItem[] };
+      const data = (await response.json()) as {
+        problems: ProblemListItem[];
+        initialProblem?: ProblemDetail | null;
+        problemDetails?: ProblemDetail[];
+      };
 
       if (!isActive) {
         return;
       }
 
+      const problemDetails = data.problemDetails ?? (data.initialProblem ? [data.initialProblem] : []);
+      const nextProblemSlug = data.problems[0]?.slug ?? null;
+      const initialProblem = problemDetails.find((problem) => problem.slug === nextProblemSlug) ?? data.initialProblem ?? null;
+
       setProblems(data.problems);
-      setSelectedProblemSlug((currentSlug) => currentSlug ?? data.problems[0]?.slug ?? null);
+      setProblemDetailsBySlug(
+        Object.fromEntries(problemDetails.map((problem) => [problem.slug, problem]))
+      );
+      setSelectedProblemSlug((currentSlug) => currentSlug ?? nextProblemSlug);
+      if (initialProblem) {
+        setSelectedProblem(initialProblem);
+        const savedDraft = readDraftBySlug(initialProblem.slug);
+        setCode(savedDraft ?? initialProblem.starterCode);
+      }
       setIsLoadingProblems(false);
     }
 
@@ -268,6 +285,15 @@ export function PracticeWorkspace() {
     }
 
     const problemSlug = selectedProblemSlug;
+    const cachedProblem = problemDetailsBySlug[problemSlug];
+
+    if (cachedProblem) {
+      setSelectedProblem(cachedProblem);
+      const savedDraft = readDraftBySlug(problemSlug);
+      setCode(savedDraft ?? cachedProblem.starterCode);
+      return;
+    }
+
     let isActive = true;
 
     async function loadProblem() {
@@ -281,6 +307,10 @@ export function PracticeWorkspace() {
 
       if (isActive) {
         setSelectedProblem(data.problem);
+        setProblemDetailsBySlug((current) => ({
+          ...current,
+          [data.problem.slug]: data.problem
+        }));
         const savedDraft = readDraftBySlug(problemSlug);
         setCode(savedDraft ?? data.problem.starterCode);
       }
@@ -296,7 +326,7 @@ export function PracticeWorkspace() {
     return () => {
       isActive = false;
     };
-  }, [selectedProblemSlug]);
+  }, [problemDetailsBySlug, selectedProblemSlug]);
 
   useEffect(() => {
     if (!selectedProblemSlug || !selectedProblem || selectedProblem.slug !== selectedProblemSlug) {
