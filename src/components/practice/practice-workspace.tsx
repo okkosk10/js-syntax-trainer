@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Play, RotateCcw, Send } from "lucide-react";
+import { BookOpen, PanelLeft, Play, RotateCcw, Send } from "lucide-react";
 import { MonacoCodeEditor } from "@/components/editor/monaco-code-editor";
 import type { ProblemDetail, ProblemListItem, ProblemProgress } from "@/features/problem/problem.repository";
+import { getLessonGuideByCategory } from "@/features/lesson/lesson-guides";
 import type { SubmissionResult } from "@/features/submission/submission.types";
 import { ProblemPanel } from "./problem-panel";
 import { ProblemSidebar } from "./problem-sidebar";
@@ -183,6 +184,18 @@ function writeDraftBySlug(slug: string, draft: string) {
   writeDraftMap(draftMap);
 }
 
+function getProblemStatusLabel(progress?: ProblemProgress) {
+  if (!progress || progress.attempts === 0) {
+    return "New";
+  }
+
+  if (progress.passed) {
+    return "Solved";
+  }
+
+  return "Attempted";
+}
+
 export function PracticeWorkspace() {
   const [code, setCode] = useState(starterCode);
   const [isRunning, setIsRunning] = useState(false);
@@ -200,6 +213,8 @@ export function PracticeWorkspace() {
   const [completionState, setCompletionState] = useState<CompletionState>(initialCompletionState);
   const [editorMarkers, setEditorMarkers] = useState<EditorMarker[]>([]);
   const [failureStreakByProblem, setFailureStreakByProblem] = useState<Record<string, number>>({});
+  const [isMobileOutlineOpen, setIsMobileOutlineOpen] = useState(false);
+  const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 
   const isInitialLoading = isLoadingProblems || (Boolean(selectedProblemSlug) && !selectedProblem);
 
@@ -330,6 +345,27 @@ export function PracticeWorkspace() {
     [problems, selectedProblemSlug]
   );
 
+  const selectedProblemIndex = useMemo(() => {
+    if (!selectedProblemId) {
+      return 0;
+    }
+
+    return Math.max(
+      0,
+      problems.findIndex((problem) => problem.id === selectedProblemId)
+    );
+  }, [problems, selectedProblemId]);
+
+  const selectedLessonTitle = useMemo(() => {
+    if (!selectedProblem) {
+      return "학습 단원";
+    }
+
+    return getLessonGuideByCategory(selectedProblem.category).title;
+  }, [selectedProblem]);
+
+  const selectedStatus = useMemo(() => getProblemStatusLabel(selectedProblem?.progress), [selectedProblem]);
+
   const selectedProblemHints = useMemo(() => {
     if (!selectedProblemId || !selectedProblem?.hints || selectedProblem.hints.length === 0) {
       return [];
@@ -397,6 +433,8 @@ export function PracticeWorkspace() {
 
     resetExecutionState();
     closeCompletionModal();
+    setIsMobileOutlineOpen(false);
+    setIsMobilePanelOpen(false);
     setSelectedProblemSlug(problemSlug);
   }
 
@@ -586,12 +624,45 @@ export function PracticeWorkspace() {
             </div>
           </div>
         )}
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-app-border bg-app-panel px-3">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="rounded bg-app-surface px-3 py-1.5">solution.js</span>
-            <span className="hidden text-app-muted sm:inline">JavaScript</span>
+        <header className="shrink-0 border-b border-app-border bg-app-panel px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold uppercase tracking-wide text-app-accent">{selectedLessonTitle}</p>
+              <p className="truncate text-sm font-semibold text-app-text">
+                {selectedProblem?.title ?? "문제를 선택해 주세요"}
+              </p>
+              <p className="text-xs text-app-muted">
+                {selectedProblemId ? selectedProblemIndex + 1 : 0} / {problems.length || 0}문제 · {selectedStatus}
+                {selectedProblem ? ` · ${selectedProblem.difficulty}` : ""}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 md:hidden">
+              <button
+                type="button"
+                aria-expanded={isMobileOutlineOpen}
+                className="inline-flex h-8 items-center gap-1 rounded-md border border-app-border px-2 text-xs hover:bg-app-surface"
+                onClick={() => setIsMobileOutlineOpen((current) => !current)}
+              >
+                <PanelLeft className="h-3.5 w-3.5" />
+                목차
+              </button>
+              <button
+                type="button"
+                aria-expanded={isMobilePanelOpen}
+                className="inline-flex h-8 items-center gap-1 rounded-md border border-app-border px-2 text-xs hover:bg-app-surface"
+                onClick={() => setIsMobilePanelOpen((current) => !current)}
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                문제
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-app-border pt-2">
+            <div className="flex items-center gap-2 text-xs text-app-muted">
+              <span className="rounded bg-app-surface px-2 py-1">solution.js</span>
+              <span>JavaScript</span>
+            </div>
+            <div className="flex items-center gap-2">
             <button
               className="inline-flex h-8 items-center gap-2 rounded-md border border-app-border px-3 text-sm hover:bg-app-surface"
               onClick={() => {
@@ -605,7 +676,7 @@ export function PracticeWorkspace() {
               Reset
             </button>
             <button
-              className="inline-flex h-8 items-center gap-2 rounded-md border border-app-border px-3 text-sm hover:bg-app-surface disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex h-8 items-center gap-2 rounded-md border border-app-accent/45 px-3 text-sm text-app-accent hover:bg-app-accent/10 disabled:cursor-not-allowed disabled:opacity-70"
               onClick={runTests}
               disabled={isRunning}
             >
@@ -620,14 +691,33 @@ export function PracticeWorkspace() {
               <Send className="h-4 w-4" />
               {isSubmitting ? "Submitting..." : "Submit"}
             </button>
+            </div>
           </div>
         </header>
-        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_360px]">
-          <div className="min-h-0">
+
+        {isMobileOutlineOpen && (
+          <div className="border-b border-app-border bg-app-panel md:hidden">
+            <div className="max-h-56 overflow-y-auto">
+              <ProblemSidebar
+                problems={problems}
+                selectedProblemId={selectedProblemId}
+                onSelectProblem={moveToProblem}
+                mode="mobile"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-h-0 border-r border-app-border/60">
             <MonacoCodeEditor value={code} onChange={setCode} markers={editorMarkers} />
           </div>
-          <ProblemPanel problem={selectedProblem} visibleHints={selectedProblemHints} />
+
+          <div className={`${isMobilePanelOpen ? "block" : "hidden"} min-h-0 border-t border-app-border lg:block lg:border-t-0`}>
+            <ProblemPanel problem={selectedProblem} visibleHints={selectedProblemHints} />
+          </div>
         </div>
+
         <ResultPanel
           activeResultSource={activeResultSource}
           isRunning={isRunning}

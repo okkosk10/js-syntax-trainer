@@ -20,10 +20,24 @@ type MonacoCodeEditorProps = {
 };
 
 const MARKER_OWNER = "js-syntax-trainer";
+const STARTER_PLACEHOLDER_COMMENT = "// 여기에 코드를 작성하세요.";
+
+function findStarterPlaceholderLine(model: MonacoEditorType.ITextModel) {
+  for (let lineNumber = 1; lineNumber <= model.getLineCount(); lineNumber += 1) {
+    const lineText = model.getLineContent(lineNumber).trim();
+
+    if (lineText === STARTER_PLACEHOLDER_COMMENT) {
+      return lineNumber;
+    }
+  }
+
+  return null;
+}
 
 export function MonacoCodeEditor({ value, onChange, markers = [] }: MonacoCodeEditorProps) {
   const editorRef = useRef<MonacoEditorType.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
+  const isRemovingPlaceholderRef = useRef(false);
 
   const clearMarkers = useCallback(() => {
     const editor = editorRef.current;
@@ -110,6 +124,50 @@ export function MonacoCodeEditor({ value, onChange, markers = [] }: MonacoCodeEd
         editorRef.current = editor;
         monacoRef.current = monaco;
         applyMarkers(markers);
+
+        editor.onDidChangeCursorPosition((event) => {
+          if (isRemovingPlaceholderRef.current) {
+            return;
+          }
+
+          const model = editor.getModel();
+
+          if (!model) {
+            return;
+          }
+
+          const placeholderLine = findStarterPlaceholderLine(model);
+
+          if (!placeholderLine || event.position.lineNumber !== placeholderLine) {
+            return;
+          }
+
+          const currentLineText = model.getLineContent(placeholderLine);
+          const indent = currentLineText.match(/^\s*/)?.[0] ?? "";
+
+          isRemovingPlaceholderRef.current = true;
+
+          try {
+            editor.executeEdits("starter-placeholder", [
+              {
+                range: new monaco.Range(
+                  placeholderLine,
+                  1,
+                  placeholderLine,
+                  model.getLineMaxColumn(placeholderLine)
+                ),
+                text: indent
+              }
+            ]);
+
+            editor.setPosition({
+              lineNumber: placeholderLine,
+              column: indent.length + 1
+            });
+          } finally {
+            isRemovingPlaceholderRef.current = false;
+          }
+        });
       }}
     />
   );

@@ -5,6 +5,7 @@ type ProblemSidebarProps = {
   problems: ProblemListItem[];
   selectedProblemId: string | null;
   onSelectProblem: (problemSlug: string) => void;
+  mode?: "desktop" | "mobile";
 };
 
 function formatDifficultyLabel(difficulty: string) {
@@ -84,22 +85,27 @@ function getProblemProgress(problem: ProblemListItem) {
   };
 }
 
-export function ProblemSidebar({ problems, selectedProblemId, onSelectProblem }: ProblemSidebarProps) {
+export function ProblemSidebar({ problems, selectedProblemId, onSelectProblem, mode = "desktop" }: ProblemSidebarProps) {
   const groupedProblems = groupProblemsByCategory(problems);
+  const isMobile = mode === "mobile";
 
   return (
-    <aside className="hidden h-full w-80 shrink-0 border-r border-app-border bg-app-panel md:flex md:flex-col">
-      <div className="flex h-12 items-center justify-between border-b border-app-border px-4">
-        <span className="text-sm font-semibold">문제은행</span>
+    <aside
+      className={`${
+        isMobile ? "flex h-full w-full flex-col" : "hidden h-full w-64 shrink-0 md:flex md:flex-col xl:w-72"
+      } border-r border-app-border bg-app-panel`}
+    >
+      <div className="flex h-12 items-center justify-between border-b border-app-border px-3">
+        <span className="text-sm font-semibold">학습 목차</span>
         <span className="rounded-full border border-app-border bg-app-surface px-2 py-0.5 text-xs text-app-muted">
           {problems.length}문제
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto px-2 py-2">
         {groupedProblems.map((group) => (
-          <section key={group.category} className="mb-4 last:mb-0">
-            <div className="sticky top-0 z-10 -mx-1 mb-2 flex items-center justify-between bg-app-panel/95 px-1 py-2 backdrop-blur-sm">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-app-muted">{group.category}</h3>
+          <section key={group.category} className="mb-3 last:mb-0">
+            <div className="sticky top-0 z-10 -mx-1 mb-1.5 flex items-center justify-between bg-app-panel/95 px-1 py-1.5 backdrop-blur-sm">
+              <h3 className="truncate pr-2 text-[11px] font-semibold tracking-wide text-app-muted">{group.category}</h3>
               <span className="text-xs text-app-muted">{group.items.length}</span>
             </div>
             {group.items.map((problem) => {
@@ -110,24 +116,23 @@ export function ProblemSidebar({ problems, selectedProblemId, onSelectProblem }:
               return (
                 <button
                   key={problem.id}
-                  className={`mb-2 flex w-full items-start gap-3 rounded-md px-3 py-3 text-left hover:bg-app-surface ${
-                    isSelected ? "bg-app-surface" : ""
+                  className={`mb-1.5 flex w-full items-start gap-2 rounded-md px-2 py-2 text-left hover:bg-app-surface ${
+                    isSelected ? "bg-app-surface ring-1 ring-app-accent/40" : ""
                   }`}
                   onClick={() => onSelectProblem(problem.slug)}
                 >
                   {isSelected ? (
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-app-accent" />
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-app-accent" />
                   ) : (
-                    <Circle className="mt-0.5 h-4 w-4 text-app-muted" />
+                    <Circle className="mt-0.5 h-3.5 w-3.5 text-app-muted" />
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm">{problem.title}</span>
-                    <span className="mt-1 flex items-center justify-between gap-2 text-xs text-app-muted">
+                    <span className="block truncate text-[13px] leading-5">{problem.title}</span>
+                    <span className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-app-muted">
                       <span>{formatDifficultyLabel(problem.difficulty)}</span>
-                      <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${progress.className}`}>
-                        <ProgressIcon className="h-3 w-3" />
-                        <span>{progress.label}</span>
-                        {progress.scoreText && <span>{progress.scoreText}</span>}
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 ${progress.className}`}>
+                        <ProgressIcon className="h-2.5 w-2.5" />
+                        {progress.scoreText ? <span>{progress.scoreText}</span> : <span>{progress.label}</span>}
                       </span>
                     </span>
                   </span>

@@ -1,4 +1,7 @@
-import { Bot, CheckCircle2, CircleAlert } from "lucide-react";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Bot, CheckCircle2, ChevronDown, ChevronUp, CircleAlert, FlaskConical } from "lucide-react";
 import type { SubmissionResult, SubmissionStatus } from "@/features/submission/submission.types";
 
 type ResultSource = "run" | "submit";
@@ -13,6 +16,8 @@ type ResultPanelProps = {
   submissionErrorMessage: string | null;
   hasEditorMarkers?: boolean;
 };
+
+type ResultTab = "tests" | "review";
 
 function statusLabel(status: SubmissionStatus) {
   if (status === "passed") {
@@ -122,6 +127,9 @@ export function ResultPanel({
   submissionErrorMessage,
   hasEditorMarkers = false
 }: ResultPanelProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<ResultTab>("tests");
+
   const displayedResult =
     activeResultSource === "run"
       ? runResult
@@ -140,16 +148,90 @@ export function ResultPanel({
     activeResultSource === "run" ? isRunning : activeResultSource === "submit" ? isSubmitting : false;
 
   const hasDetailedResult = Boolean(displayedError) || Boolean(displayedResult);
+  const summaryStatus = displayedError
+    ? "error"
+    : displayedResult?.status ?? (isLoading ? "running" : "idle");
+
+  useEffect(() => {
+    if (hasDetailedResult || isLoading) {
+      setIsExpanded(true);
+    }
+  }, [hasDetailedResult, isLoading]);
+
+  const summaryText = useMemo(() => {
+    if (isLoading) {
+      return activeResultSource === "run" ? "공개 테스트 실행 중..." : "전체 테스트 제출 중...";
+    }
+
+    if (displayedError) {
+      return displayedError;
+    }
+
+    if (displayedResult) {
+      return `${sourceLabel(activeResultSource)} · ${statusLabel(displayedResult.status)} · ${displayedResult.score}점 · ${displayedResult.runtimeMs}ms`;
+    }
+
+    return "Run 또는 Submit을 실행하면 결과가 표시됩니다.";
+  }, [activeResultSource, displayedError, displayedResult, isLoading]);
 
   return (
-    <section className={`${hasDetailedResult ? "h-96" : "h-64"} border-t border-app-border bg-app-panel`}>
-      <div className="flex h-10 items-center gap-4 border-b border-app-border px-4 text-sm">
-        <span className="font-semibold">테스트 결과</span>
-        <span className="text-app-muted">AI 리뷰</span>
-        <span className="text-app-muted">콘솔</span>
+    <section className={`${isExpanded ? "h-80" : "h-12"} shrink-0 border-t border-app-border bg-app-panel transition-[height] duration-200`}>
+      <div className="flex h-12 items-center justify-between gap-3 px-4 text-sm">
+        <div className="flex min-w-0 items-center gap-2">
+          {summaryStatus === "passed" ? (
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-app-accent" />
+          ) : summaryStatus === "failed" || summaryStatus === "error" ? (
+            <CircleAlert className="h-4 w-4 shrink-0 text-app-danger" />
+          ) : (
+            <FlaskConical className="h-4 w-4 shrink-0 text-app-muted" />
+          )}
+          <p className="truncate text-xs text-app-muted sm:text-sm">{summaryText}</p>
+        </div>
+        <button
+          type="button"
+          aria-expanded={isExpanded}
+          className="inline-flex h-8 items-center gap-1 rounded-md border border-app-border px-2 text-xs text-app-muted hover:bg-app-surface hover:text-app-text"
+          onClick={() => setIsExpanded((current) => !current)}
+        >
+          {isExpanded ? (
+            <>
+              접기
+              <ChevronDown className="h-3.5 w-3.5" />
+            </>
+          ) : (
+            <>
+              결과 보기
+              <ChevronUp className="h-3.5 w-3.5" />
+            </>
+          )}
+        </button>
       </div>
-      <div className="grid h-[calc(100%-2.5rem)] grid-cols-1 gap-0 overflow-hidden md:grid-cols-2">
-        <div className="overflow-y-auto border-r border-app-border p-4">
+      {isExpanded && (
+        <div className="h-[calc(100%-3rem)] overflow-hidden border-t border-app-border">
+          <div className="flex items-center gap-2 border-b border-app-border px-3 py-2">
+            <button
+              type="button"
+              aria-pressed={activeTab === "tests"}
+              className={`rounded-md px-2.5 py-1 text-xs ${
+                activeTab === "tests" ? "bg-app-surface text-app-text" : "text-app-muted hover:text-app-text"
+              }`}
+              onClick={() => setActiveTab("tests")}
+            >
+              테스트 결과
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeTab === "review"}
+              className={`rounded-md px-2.5 py-1 text-xs ${
+                activeTab === "review" ? "bg-app-surface text-app-text" : "text-app-muted hover:text-app-text"
+              }`}
+              onClick={() => setActiveTab("review")}
+            >
+              AI 리뷰
+            </button>
+          </div>
+
+          {activeTab === "tests" && <div className="h-full overflow-y-auto p-4">
           {displayedError && (
             <div className="rounded-md border border-app-danger/40 bg-app-danger/10 p-3">
               <p className="text-sm font-semibold text-app-danger">
@@ -212,17 +294,22 @@ export function ResultPanel({
           {!displayedError && !isLoading && !displayedResult && activeResultSource && (
             <p className="text-sm text-app-muted">결과를 기다리는 중입니다.</p>
           )}
-        </div>
-        <div className="overflow-y-auto p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold">
+          </div>}
+
+          {activeTab === "review" && <div className="h-full overflow-y-auto p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold">
             <Bot className="h-4 w-4 text-app-accent" />
             AI 리뷰
-          </div>
-          <p className="mt-2 text-sm text-app-muted">
-            테스트 결과와 코드 제출 이력을 바탕으로 개선점을 구조화해서 보여주는 영역입니다.
-          </p>
+            </div>
+            <p className="mt-2 text-sm text-app-muted">
+              테스트 결과와 코드 제출 이력을 바탕으로 개선점을 구조화해서 보여주는 영역입니다.
+            </p>
+            <p className="mt-2 text-sm text-app-muted">
+              현재는 테스트 결과에 집중해 풀이를 안정화한 뒤, 필요할 때 리뷰를 확인하는 흐름을 권장합니다.
+            </p>
+          </div>}
         </div>
-      </div>
+      )}
     </section>
   );
 }
