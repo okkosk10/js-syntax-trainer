@@ -1,6 +1,10 @@
 import { Prisma, SubmissionStatus, TestStatus } from "@prisma/client";
 import { LocalExecutionProvider } from "@/features/execution/local-execution.provider";
 import type { SubmissionResult } from "@/features/submission/submission.types";
+import {
+  buildLearningStatCreateData,
+  buildLearningStatUpdateData
+} from "@/features/submission/learning-stat";
 import { prisma } from "@/lib/prisma";
 
 const executionProvider = new LocalExecutionProvider();
@@ -82,6 +86,8 @@ export async function createInlineSubmission(input: InlineSubmissionInput): Prom
   });
 
   await prisma.$transaction(async (tx) => {
+    const submittedAt = new Date();
+
     if (execution.results.length > 0) {
       await tx.testResult.createMany({
         data: execution.results.map((result) => ({
@@ -116,25 +122,11 @@ export async function createInlineSubmission(input: InlineSubmissionInput): Prom
 
     if (!existingStat) {
       await tx.learningStat.create({
-        data: {
-          userId: input.userId,
-          problemId: input.problemId,
-          attempts: 1,
-          passed: execution.status === "passed",
-          bestScore: execution.score,
-          lastSubmittedAt: new Date(),
-          averageRuntimeMs: execution.runtimeMs
-        }
+        data: buildLearningStatCreateData(input.userId, input.problemId, execution, submittedAt)
       });
 
       return;
     }
-
-    const nextAttempts = existingStat.attempts + 1;
-    const previousRuntime = existingStat.averageRuntimeMs ?? execution.runtimeMs;
-    const nextAverageRuntime = Math.round(
-      (previousRuntime * existingStat.attempts + execution.runtimeMs) / nextAttempts
-    );
 
     await tx.learningStat.update({
       where: {
@@ -143,13 +135,7 @@ export async function createInlineSubmission(input: InlineSubmissionInput): Prom
           problemId: input.problemId
         }
       },
-      data: {
-        attempts: nextAttempts,
-        passed: existingStat.passed || execution.status === "passed",
-        bestScore: Math.max(existingStat.bestScore, execution.score),
-        lastSubmittedAt: new Date(),
-        averageRuntimeMs: nextAverageRuntime
-      }
+      data: buildLearningStatUpdateData(existingStat, execution, submittedAt)
     });
   });
 
