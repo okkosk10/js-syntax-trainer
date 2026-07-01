@@ -1,4 +1,5 @@
 import type { ProblemDetail } from "@/features/problem/problem.repository";
+import { getLessonGuideByCategory } from "@/features/lesson/lesson-guides";
 
 type ProblemPanelProps = {
   problem: ProblemDetail | null;
@@ -48,6 +49,7 @@ export function ProblemPanel({ problem, visibleHints = [] }: ProblemPanelProps) 
   }
 
   const progressLine = getProgressLine(problem);
+  const lessonGuide = getLessonGuideByCategory(problem.category);
 
   return (
     <section className="h-full overflow-y-auto overflow-x-hidden border-l border-app-border bg-app-panel">
@@ -59,6 +61,64 @@ export function ProblemPanel({ problem, visibleHints = [] }: ProblemPanelProps) 
         <p className={`mt-1 text-xs ${progressLine.className}`}>{progressLine.text}</p>
       </div>
       <div className="space-y-5 p-4 text-sm leading-6 text-app-muted">
+        <section className="rounded-lg border border-app-border bg-app-bg/60 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-app-accent">오늘의 학습</p>
+          <h3 className="mt-2 text-base font-semibold text-app-text">{lessonGuide.title}</h3>
+
+          <div className="mt-4">
+            <h4 className="text-sm font-semibold text-app-text">목표</h4>
+            <p className="mt-1 text-sm text-app-muted">{lessonGuide.goal}</p>
+          </div>
+
+          <div className="mt-4">
+            <h4 className="text-sm font-semibold text-app-text">핵심 개념</h4>
+            <ul className="mt-2 space-y-1 text-sm text-app-muted">
+              {lessonGuide.concepts.map((concept) => (
+                <li key={concept}>- {concept}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-4">
+            <h4 className="text-sm font-semibold text-app-text">풀이 접근 가이드</h4>
+            <p className="mt-1 text-sm text-app-muted">{lessonGuide.explanation}</p>
+          </div>
+
+          <div className="mt-4">
+            <h4 className="text-sm font-semibold text-app-text">예제</h4>
+            <pre className="mt-2 overflow-x-auto rounded-md bg-app-panel p-3 text-xs leading-5 text-app-text">
+              <code>{lessonGuide.exampleCode}</code>
+            </pre>
+          </div>
+
+          <div className="mt-4">
+            <h4 className="text-sm font-semibold text-app-text">예제 해설</h4>
+            <ul className="mt-2 space-y-1 text-sm text-app-muted">
+              {lessonGuide.exampleExplanation.map((item) => (
+                <li key={item}>- {item}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-4">
+            <h4 className="text-sm font-semibold text-app-text">생각 순서</h4>
+            <ol className="mt-2 space-y-1 text-sm text-app-muted">
+              {lessonGuide.thinkingSteps.map((step, index) => (
+                <li key={step}>{index + 1}. {step}</li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="mt-4">
+            <h4 className="text-sm font-semibold text-app-text">주의할 점</h4>
+            <ul className="mt-2 space-y-1 text-sm text-app-muted">
+              {lessonGuide.cautions.map((caution) => (
+                <li key={caution}>- {caution}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
         <p>{problem.description}</p>
         <div>
           <h3 className="mb-2 text-sm font-semibold text-app-text">입력</h3>
